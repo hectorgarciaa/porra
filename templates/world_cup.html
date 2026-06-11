@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% block title %}Mundial 2026 — La Porra del Bar{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <!-- Page header -->
+    <div style="margin-bottom:1.25rem;">
+        <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.5rem; color:#1A1A2E;">
+            ⚽ Mundial 2026
+        </h1>
+        <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;">Aquí el Excel viene con espuma 🍺</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar" style="margin-bottom:1.25rem; overflow-x:auto;">
+        <button class="tab-btn active" data-tab="groups">Grupos</button>
+        <button class="tab-btn" data-tab="bracket">Eliminatorias</button>
+        <button class="tab-btn" data-tab="matches">Partidos</button>
+        <button class="tab-btn" data-tab="scorers">Stats</button>
+        <button class="tab-btn" data-tab="teams">Equipos</button>
+        <button class="tab-btn" data-tab="players">Jugadores</button>
+    </div>
+
+    <!-- ── TAB GRUPOS ──────────────────────────────────────── -->
+    <div id="tab-groups" class="tab-content active">
+        <div id="groups-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando grupos...</div>
+        </div>
+    </div>
+
+    <!-- ── TAB ELIMINATORIAS ──────────────────────────────── -->
+    <div id="tab-bracket" class="tab-content">
+        <div id="bracket-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando...</div>
+        </div>
+    </div>
+
+    <!-- ── TAB PARTIDOS ───────────────────────────────────── -->
+    <div id="tab-matches" class="tab-content">
+        <!-- Filters -->
+        <div class="chips-row" style="margin-bottom:1rem;" id="match-filters">
+            <button class="chip active" onclick="filterMatches(this,'all')">Todos</button>
+            <button class="chip" onclick="filterMatches(this,'pending')">Pendientes</button>
+            <button class="chip" onclick="filterMatches(this,'played')">Jugados</button>
+        </div>
+        <div id="matches-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
+        </div>
+    </div>
+
+    <!-- ── TAB STATS ──────────────────────────────────────── -->
+    <div id="tab-scorers" class="tab-content">
+        <div class="chips-row" style="margin-bottom:1rem;">
+            <button class="chip active" onclick="switchStat(this,'scorers')">⚽ Goleadores</button>
+            <button class="chip" onclick="switchStat(this,'assisters')">👟 Asistentes</button>
+            <button class="chip" onclick="switchStat(this,'yellows')">🟡 Amarillas</button>
+            <button class="chip" onclick="switchStat(this,'reds')">🟥 Rojas</button>
+        </div>
+        <div id="stats-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando...</div>
+        </div>
+    </div>
+
+    <!-- ── TAB EQUIPOS ────────────────────────────────────── -->
+    <div id="tab-teams" class="tab-content">
+        <!-- Search -->
+        <div class="input-wrapper" style="margin-bottom:0.875rem;">
+            <span class="input-icon">🔍</span>
+            <input class="form-input form-input--icon-left" type="text" id="teams-search"
+                   placeholder="Buscar equipo..." oninput="filterTeams()">
+        </div>
+        <div id="teams-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando equipos...</div>
+        </div>
+    </div>
+
+    <!-- ── TAB JUGADORES ─────────────────────────────────── -->
+    <div id="tab-players" class="tab-content">
+        <!-- Search -->
+        <div class="input-wrapper" style="margin-bottom:0.875rem;">
+            <span class="input-icon">🔍</span>
+            <input class="form-input form-input--icon-left" type="text" id="players-search"
+                   placeholder="Buscar jugador..." oninput="filterPlayers()">
+        </div>
+        <div style="display:flex; gap:0.5rem; margin-bottom:0.875rem; flex-wrap:wrap;" id="pos-filter">
+            <button class="chip active" onclick="filterByPos(this,'all')">Todos</button>
+        </div>
+        <div id="players-content">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando jugadores...</div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let groupsData = [];
+let allMatches = [];
+let allTeams = [];
+let allPlayers = [];
+let state = {};
+let currentMatchFilter = 'all';
+
+/* ── TAB SWITCHING ─────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + btn.dataset.tab));
+        const tab = btn.dataset.tab;
+        if (tab === 'groups'  && !state.groups)   { state.groups = 1; loadGroups(); }
+        if (tab === 'bracket' && !state.bracket)  { state.bracket = 1; loadBracket(); }
+        if (tab === 'matches' && !state.matches)  { state.matches = 1; loadMatches(); }
+        if (tab === 'scorers' && !state.scorers)  { state.scorers = 1; loadStat('scorers'); }
+        if (tab === 'teams'   && !state.teams)    { state.teams = 1; loadTeams(); }
+        if (tab === 'players' && !state.players)  { state.players = 1; loadPlayers(); }
+    });
+});
+
+/* ── GRUPOS ───────────────────────────────────────────────── */
+async function loadGroups() {
+    const el = document.getElementById('groups-content');
+    const res = await api('/groups');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error al cargar grupos</p>'; return; }
+    groupsData = await res.json();
+    renderGroups(groupsData);
+}
+
+function renderGroups(groups) {
+    const el = document.getElementById('groups-content');
+    el.innerHTML = groups.map(g => `
+        <div class="card card--flat" style="margin-bottom:0.875rem;">
+            <div class="card-body--sm">
+                <div class="section-header">
+                    <span class="section-title" style="font-size:1rem;">Grupo ${g.letter}</span>
+                </div>
+                <div class="overflow-x">
+                    <table class="group-table">
+                        <thead><tr>
+                            <th style="width:1.5rem;">#</th>
+                            <th>Equipo</th>
+                            <th>PJ</th><th>G</th><th>E</th><th>P</th><th>DG</th><th>Pts</th>
+                        </tr></thead>
+                        <tbody>
+                        ${(g.standings || []).map((t, i) => `
+                            <tr class="${i < 2 ? 'qualified' : ''}" onclick="loadTeamDetail(${t.team.id})" style="cursor:pointer;">
+                                <td>${i+1}</td>
+                                <td>${t.team.name}</td>
+                                <td>${t.played}</td>
+                                <td>${t.won}</td>
+                                <td>${t.drawn}</td>
+                                <td>${t.lost}</td>
+                                <td>${t.goal_difference > 0 ? '+' : ''}${t.goal_difference}</td>
+                                <td style="font-weight:800;color:var(--text);">${t.points}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadTeamDetail(id) {
+    const el = document.getElementById('groups-content');
+    el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div> Cargando equipo...</div>';
+    const res = await api('/teams/' + id);
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error</p>'; return; }
+    const t = await res.json();
+    const pos = t.summary?.group_position || '-';
+    el.innerHTML = `
+        <button onclick="renderGroups(groupsData)" class="btn btn-ghost btn--sm" style="margin-bottom:1rem;">← Volver a grupos</button>
+        <div class="card card--flat">
+            <div class="card-body">
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                    <div>
+                        <h2 style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.25rem;">${t.team.name}</h2>
+                        <span class="badge badge--blue" style="margin-top:.25rem;">Grupo ${t.group.letter} · ${pos}º</span>
+                    </div>
+                </div>
+                <div class="stat-row" style="margin-bottom:1rem;">
+                    <div class="stat-card"><div class="stat-card__value">${t.summary?.points || 0}</div><div class="stat-card__label">Puntos</div></div>
+                    <div class="stat-card"><div class="stat-card__value">${t.summary?.goals_for || 0}</div><div class="stat-card__label">GF</div></div>
+                    <div class="stat-card"><div class="stat-card__value">${t.summary?.goals_against || 0}</div><div class="stat-card__label">GC</div></div>
+                </div>
+                <div class="section-title" style="margin-bottom:.75rem;">Jugadores</div>
+                <div class="overflow-x">
+                    <table class="group-table">
+                        <thead><tr><th>#</th><th>Nombre</th><th>⚽</th><th>👟</th><th>🟡</th><th>🟥</th></tr></thead>
+                        <tbody>${(t.players || []).map(p => `
+                            <tr>
+                                <td>${p.number}</td>
+                                <td>${p.name} ${p.surname}</td>
+                                <td>${p.num_goals}</td><td>${p.num_assists}</td>
+                                <td>${p.num_yellow_cards}</td><td>${p.num_red_cards}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+}
+
+/* ── BRACKET ──────────────────────────────────────────────── */
+async function loadBracket() {
+    const el = document.getElementById('bracket-content');
+    const res = await api('/groups');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error</p>'; return; }
+    const groups = await res.json();
+
+    const rounds = [
+        { key: 'Octavos', matches: 8 },
+        { key: 'Cuartos', matches: 4 },
+        { key: 'Semis',   matches: 2 },
+        { key: 'Final',   matches: 1 },
+    ];
+
+    el.innerHTML = `
+        <div class="fun-banner" style="margin-bottom:1rem;">🏆 El cuadro se construye al terminar la fase de grupos</div>
+        <div class="bracket-grid">
+            ${rounds.map(r => `
+                <div class="bracket-round">
+                    <div class="bracket-round__title">${r.key}</div>
+                    ${Array.from({length: r.matches}, () => `
+                        <div class="bracket-match">
+                            <div class="bracket-match__team">
+                                <span>–</span>
+                                <span class="bracket-match__score">?</span>
+                            </div>
+                            <div class="bracket-match__team">
+                                <span>–</span>
+                                <span class="bracket-match__score">?</span>
+                            </div>
+                        </div>`).join('')}
+                </div>`).join('')}
+        </div>
+        <div class="microcopy" style="margin-top:1rem;">Aquí el Excel viene con espuma 🍺</div>
+    `;
+}
+
+/* ── PARTIDOS ─────────────────────────────────────────────── */
+async function loadMatches() {
+    const el = document.getElementById('matches-content');
+    if (!groupsData.length) {
+        const res = await api('/groups');
+        if (!res || !res.ok) return;
+        groupsData = await res.json();
+    }
+    allMatches = [];
+    for (const g of groupsData) {
+        const r = await api('/groups/' + g.id);
+        if (!r || !r.ok) continue;
+        const gd = await r.json();
+        for (const m of (gd.matches || [])) {
+            m.group_letter = g.letter;
+            allMatches.push(m);
+        }
+    }
+    allMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+    renderMatches(allMatches, currentMatchFilter);
+}
+
+function filterMatches(btn, filter) {
+    document.querySelectorAll('#match-filters .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentMatchFilter = filter;
+    if (allMatches.length) renderMatches(allMatches, filter);
+}
+
+function renderMatches(matches, filter) {
+    const el = document.getElementById('matches-content');
+    const now = new Date();
+    let filtered = matches;
+    if (filter === 'pending') filtered = matches.filter(m => m.local_goals === null);
+    if (filter === 'played')  filtered = matches.filter(m => m.local_goals !== null);
+
+    if (!filtered.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin partidos</div></div>`;
+        return;
+    }
+
+    // group by day
+    const byDay = {};
+    for (const m of filtered) {
+        const day = new Date(m.kickoff_at).toLocaleDateString('es-ES', {weekday:'long',day:'numeric',month:'long'});
+        if (!byDay[day]) byDay[day] = [];
+        byDay[day].push(m);
+    }
+
+    el.innerHTML = Object.entries(byDay).map(([day, ms]) => `
+        <div style="margin-bottom:0.5rem; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.875rem; color:#8892A4; padding:0.25rem 0;">${day}</div>
+        ${ms.map(m => renderMatchRow(m, now)).join('')}
+    `).join('');
+}
+
+function renderMatchRow(m, now) {
+    const played = m.local_goals !== null;
+    const time = new Date(m.kickoff_at).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'});
+    const scoreOrTime = played ? `${m.local_goals} – ${m.away_goals}` : time;
+    const scoreColor = played ? 'var(--text)' : 'var(--text-muted)';
+    return `
+    <div class="match-card" style="margin-bottom:0.5rem; cursor:pointer;" onclick="loadMatchDetail(${m.id})">
+        <div class="match-card__teams">
+            <span class="match-card__team" style="text-align:right;">${m.local_team?.name || '?'}</span>
+            <span class="match-card__score" style="color:${scoreColor};">${scoreOrTime}</span>
+            <span class="match-card__team" style="text-align:left;">${m.away_team?.name || '?'}</span>
+        </div>
+        <div class="match-card__time">
+            ${m.group_letter ? `<span class="badge badge--gray">Grupo ${m.group_letter}</span>` : ''}
+            ${m.venue ? `<span style="font-size:.7rem;color:#8892A4;"> · ${m.venue}</span>` : ''}
+        </div>
+    </div>`;
+}
+
+async function loadMatchDetail(id) {
+    const activeTab = document.querySelector('.tab-content.active');
+    const prevHTML = activeTab.innerHTML;
+    activeTab.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+    const res = await api('/matches/' + id);
+    if (!res || !res.ok) { activeTab.innerHTML = prevHTML; return; }
+    const m = await res.json();
+    const played = m.local_goals !== null;
+    const dateStr = new Date(m.kickoff_at).toLocaleString('es-ES', {weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+    activeTab.innerHTML = `
+        <button onclick="location.reload()" class="btn btn-ghost btn--sm" style="margin-bottom:1rem;">← Volver</button>
+        <div class="card card--flat">
+            <div class="card-body" style="text-align:center;">
+                <div style="font-size:.75rem;color:#8892A4;margin-bottom:.75rem;">${m.group ? 'Grupo ' + m.group.letter : (m.stage || '').toUpperCase()} · ${dateStr}</div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1rem;">
+                    <span style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.125rem;">${m.local_team?.name}</span>
+                    <span class="match-card__score" style="font-size:1.5rem;min-width:4rem;">${played ? m.local_goals + ' – ' + m.away_goals : 'vs'}</span>
+                    <span style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.125rem;">${m.away_team?.name}</span>
+                </div>
+                ${m.venue ? `<div style="font-size:.75rem;color:#8892A4;margin-bottom:1rem;">📍 ${m.venue}</div>` : ''}
+                ${played ? renderMatchPlayerDetails(m) : '<p class="microcopy">Partido pendiente de disputarse</p>'}
+            </div>
+        </div>`;
+}
+
+function renderMatchPlayerDetails(m) {
+    const sections = [
+        { emoji:'⚽', label:'Goleadores', key:'scorers' },
+        { emoji:'👟', label:'Asistencias', key:'assists' },
+        { emoji:'🟡', label:'Amarillas',   key:'yellow_cards' },
+        { emoji:'🟥', label:'Rojas',       key:'red_cards' },
+    ];
+    const blocks = sections.filter(s => m[s.key]?.length).map(s => `
+        <div class="card card--flat" style="margin-top:.75rem;text-align:left;">
+            <div class="card-body--sm">
+                <div style="font-weight:700;font-size:.8125rem;margin-bottom:.375rem;">${s.emoji} ${s.label}</div>
+                ${m[s.key].map(p => `<div style="font-size:.8125rem;padding:.2rem 0;">${p.name} ${p.surname} <span style="color:#8892A4;">(${p.team_name})</span></div>`).join('')}
+            </div>
+        </div>`).join('');
+    return blocks || '';
+}
+
+/* ── STATS ────────────────────────────────────────────────── */
+let currentStat = 'scorers';
+async function loadStat(type) {
+    const el = document.getElementById('stats-content');
+    el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+    const res = await api('/stats/' + type + '?start=1&end=30');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error al cargar</p>'; return; }
+    const data = await res.json();
+    const items = data.items || [];
+    const statKey = type;
+    const icons = { scorers:'⚽', assisters:'👟', yellows:'🟡', reds:'🟥' };
+    el.innerHTML = `<div class="card card--flat">` + items.map(item => `
+        <div class="rank-item">
+            <span class="rank-pos rank-pos--${item.rank}">${item.rank}</span>
+            <div style="flex:1;">
+                <div style="font-weight:600;">${item.player.name} ${item.player.surname}</div>
+                <div style="font-size:.75rem;color:#8892A4;">${item.team.name}</div>
+            </div>
+            <span style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.125rem;color:var(--coral);">${icons[type] || ''} ${item[statKey]}</span>
+        </div>`).join('') + `</div>`;
+    if (!items.length) el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🤷</div><div class="empty-state__title">Sin datos aún</div></div>';
+}
+
+function switchStat(btn, type) {
+    document.querySelectorAll('#tab-scorers .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentStat = type;
+    loadStat(type);
+}
+
+/* ── EQUIPOS ──────────────────────────────────────────────── */
+async function loadTeams() {
+    if (!groupsData.length) {
+        const res = await api('/groups');
+        if (!res || !res.ok) return;
+        groupsData = await res.json();
+    }
+    allTeams = groupsData.flatMap(g => (g.standings || []).map(s => ({ ...s.team, group: g.letter, points: s.points, played: s.played })));
+    renderTeams(allTeams);
+}
+
+function filterTeams() {
+    const q = document.getElementById('teams-search').value.toLowerCase();
+    renderTeams(allTeams.filter(t => t.name.toLowerCase().includes(q)));
+}
+
+function renderTeams(teams) {
+    const el = document.getElementById('teams-content');
+    if (!teams.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin resultados</div></div>'; return; }
+    el.innerHTML = `<div class="space-y-2">` + teams.map(t => `
+        <div class="card card--flat card--hover" onclick="loadTeamDetail(${t.id})">
+            <div class="card-body--sm" style="display:flex;align-items:center;gap:.75rem;">
+                <div style="width:2.5rem;height:2.5rem;border-radius:.5rem;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-weight:800;font-family:'Outfit',sans-serif;color:var(--blue);">
+                    ${t.name.substring(0,2).toUpperCase()}
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${t.name}</div>
+                    <div style="font-size:.75rem;color:#8892A4;">Grupo ${t.group}</div>
+                </div>
+                <span class="badge badge--blue">${t.points} pts</span>
+            </div>
+        </div>`).join('') + `</div>`;
+}
+
+/* ── JUGADORES ────────────────────────────────────────────── */
+async function loadPlayers() {
+    if (!allTeams.length) await loadTeams();
+    allPlayers = [];
+    for (const t of allTeams) {
+        const res = await api('/teams/' + t.id);
+        if (!res || !res.ok) continue;
+        const td = await res.json();
+        for (const p of (td.players || [])) {
+            allPlayers.push({ ...p, team_name: t.name, team_group: t.group });
+        }
+    }
+    renderPlayers(allPlayers);
+}
+
+function filterPlayers() {
+    const q = document.getElementById('players-search').value.toLowerCase();
+    renderPlayers(allPlayers.filter(p => (p.name + ' ' + p.surname).toLowerCase().includes(q)));
+}
+
+function filterByPos(btn, pos) {
+    document.querySelectorAll('#pos-filter .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const q = document.getElementById('players-search').value.toLowerCase();
+    let filtered = allPlayers.filter(p => (p.name + ' ' + p.surname).toLowerCase().includes(q));
+    renderPlayers(filtered);
+}
+
+function renderPlayers(players) {
+    const el = document.getElementById('players-content');
+    if (!players.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin resultados</div></div>'; return; }
+    const sorted = [...players].sort((a, b) => b.num_goals - a.num_goals || b.num_assists - a.num_assists);
+    el.innerHTML = `<div class="space-y-2">` + sorted.slice(0, 50).map(p => `
+        <div class="card card--flat card--hover">
+            <div class="card-body--sm" style="display:flex;align-items:center;gap:.75rem;">
+                <div style="width:2.5rem;height:2.5rem;border-radius:.5rem;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;color:var(--green);font-size:.875rem;">
+                    ${p.number}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name} ${p.surname}</div>
+                    <div style="font-size:.75rem;color:#8892A4;">${p.team_name} · Grupo ${p.team_group}</div>
+                </div>
+                <div style="text-align:right;font-size:.75rem;color:#8892A4;flex-shrink:0;">
+                    ${p.num_goals > 0 ? `<span>⚽ ${p.num_goals}</span> ` : ''}
+                    ${p.num_assists > 0 ? `<span>👟 ${p.num_assists}</span>` : ''}
+                </div>
+            </div>
+        </div>`).join('') + `</div>`;
+}
+
+/* ── Init ─────────────────────────────────────────────────── */
+state.groups = 1;
+loadGroups();
+</script>
+{% endblock %}

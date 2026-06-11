@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Inicio — La Porra del Bar{% endblock %}
+
+{% block topbar %}
+<header class="app-header">
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+        <div class="avatar-placeholder avatar-placeholder--md" id="dash-avatar-placeholder" data-user-initial>?</div>
+        <div>
+            <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1rem; color:#1A1A2E;" id="dash-greeting">
+                ¡Hola!
+            </div>
+            <div style="font-size:0.75rem; color:#8892A4;">Se juega mejor con una caña 🍺</div>
+        </div>
+    </div>
+    <div class="app-header__actions">
+        <button class="header-icon-btn" onclick="logout()" title="Salir">👋</button>
+        <a href="/settings" class="header-icon-btn" title="Ajustes">⚙️</a>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <!-- Feature grid 2x2 -->
+    <div class="grid-2" style="margin-bottom:1.5rem;">
+
+        <!-- Clasificación -->
+        <a href="/classification" class="feature-card feature-card--coral" id="card-clasificacion">
+            <span class="feature-card__icon">🏆</span>
+            <span class="feature-card__title">Clasificación</span>
+            <span class="feature-card__subtitle">El que no corre, vuela en la tabla</span>
+        </a>
+
+        <!-- Mi Porra -->
+        <a href="/my-predictions" class="feature-card feature-card--blue" id="card-mi-porra">
+            <span class="feature-card__icon">📋</span>
+            <span class="feature-card__title">Mi porra</span>
+            <span class="feature-card__subtitle">Pon tu porra antes de que hable el cuñado</span>
+        </a>
+
+        <!-- Mundial -->
+        <a href="/world-cup" class="feature-card feature-card--green" id="card-mundial">
+            <span class="feature-card__icon">⚽</span>
+            <span class="feature-card__title">Mundial</span>
+            <span class="feature-card__subtitle">Partidos, grupos y puro fútbol</span>
+        </a>
+
+        <!-- El Bar -->
+        <a href="/bar" class="feature-card feature-card--gold" id="card-bar">
+            <span class="feature-card__icon">🍻</span>
+            <span class="feature-card__title">El Bar</span>
+            <span class="feature-card__subtitle">Chat en directo</span>
+        </a>
+    </div>
+
+    <!-- Mini ranking preview -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body--sm">
+            <div class="section-header">
+                <span class="section-title">🏆 Clasificación</span>
+                <a href="/classification" class="section-link">Ver todo →</a>
+            </div>
+            <div id="mini-ranking">
+                <div class="loading-spinner"><div class="spinner"></div> Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner divertido -->
+    <div class="fun-banner">
+        ☀️ &nbsp;"Aquí se viene llorado de casa y se sale con la porra hecha" &nbsp;☀️
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const user = getUser();
+    if (user.name) {
+        document.getElementById('dash-greeting').textContent = '¡Hola, ' + user.name + '!';
+        document.getElementById('dash-avatar-placeholder').textContent = user.name[0].toUpperCase();
+    }
+})();
+
+async function loadMiniRanking() {
+    const el = document.getElementById('mini-ranking');
+    const res = await api('/leaderboard');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">No se pudo cargar la clasificación</p>'; return; }
+    const data = await res.json();
+    const top = data.slice(0, 5);
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    const user = getUser();
+    el.innerHTML = top.map((u, i) => `
+        <div class="rank-item" style="${u.name === user.name ? 'background:var(--coral-light);border-radius:var(--r-sm);' : ''}">
+            <span class="rank-pos rank-pos--${i+1}" style="font-size:1.1rem;">${medals[i]}</span>
+            <span class="rank-name">${u.name}${u.name === user.name ? ' <span style="font-size:.7rem;color:var(--coral);">(tú)</span>' : ''}</span>
+            <span class="rank-points">${u.points} pts</span>
+        </div>
+    `).join('');
+}
+
+loadMiniRanking();
+</script>
+{% endblock %}

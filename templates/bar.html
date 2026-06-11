@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}El Bar — La Porra del Bar{% endblock %}
+{% block head %}
+<style>
+#chat-scroll { flex:1; overflow-y:auto; padding:0.75rem; display:flex; flex-direction:column; gap:0.5rem; }
+.chat-row { display:flex; gap:0.5rem; max-width:90%; }
+.chat-row.mine { align-self:flex-end; flex-direction:row-reverse; }
+.chat-row.other { align-self:flex-start; }
+.chat-bubble--chat {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--text);
+}
+.chat-row.mine .chat-bubble--chat { background: var(--coral-light); border-color: var(--coral-mid); }
+.chat-bubble__author { font-size:0.6875rem; font-weight:700; color:var(--coral); margin-bottom:0.15rem; }
+.chat-bubble__time { font-size:0.625rem; color:var(--text-muted); margin-top:0.25rem; text-align:right; }
+.chat-img--inline { max-width:200px; border-radius:var(--r-sm); margin-top:0.25rem; cursor:pointer; }
+.chat-avatar { width:1.75rem; height:1.75rem; border-radius:50%; object-fit:cover; background:var(--sand-dark); flex-shrink:0; }
+.chat-avatar-placeholder {
+    width:1.75rem; height:1.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Outfit',sans-serif; font-weight:700; font-size:0.7rem;
+    background:var(--coral-light); color:var(--coral); flex-shrink:0;
+}
+#chat-form-bar { display:flex; gap:0.5rem; padding:0.75rem; border-top:1px solid var(--border); background:var(--cream); }
+#chat-input-bar { flex:1; background:var(--sand); border:1.5px solid var(--border); color:var(--text); padding:0.5rem 0.75rem; border-radius:var(--r); font-size:0.875rem; }
+#chat-input-bar:focus { outline:none; border-color:var(--coral); }
+.chat-icon-btn { width:2.25rem; height:2.25rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; background:var(--sand-dark); border:1px solid var(--border); color:var(--text-mid); cursor:pointer; transition:var(--transition); }
+.chat-icon-btn:hover { background:var(--coral-light); color:var(--coral); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-content page-content--padded-top">
+    <div class="section-header" style="margin-bottom:0.5rem;">
+        <span class="section-title">🍻 El Bar</span>
+    </div>
+    <div class="card" style="display:flex; flex-direction:column; height:calc(100vh - 200px);">
+        <div id="chat-scroll">
+            <div class="loading-spinner" id="chat-loading"><div class="spinner"></div> Cargando...</div>
+        </div>
+        <form id="chat-form-bar" onsubmit="sendText(event)">
+            <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="sendImage()">
+            <button type="button" onclick="document.getElementById('image-input').click()" class="chat-icon-btn" title="Enviar imagen">📷</button>
+            <input type="text" id="chat-input-bar" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button type="submit" class="chat-icon-btn" title="Enviar" style="color:var(--coral);">➤</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let lastId = 0;
+let userId = null;
+const pollTimer = null;
+
+(async function init() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    userId = user.id;
+    await loadMessages();
+    setInterval(loadMessages, 3000);
+})();
+
+async function loadMessages() {
+    const res = await api('/chat/messages?since=' + lastId);
+    if (!res || !res.ok) return;
+    const msgs = await res.json();
+    if (!msgs.length) return;
+    const container = document.getElementById('chat-scroll');
+    const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 60;
+    document.getElementById('chat-loading')?.remove();
+    for (const m of msgs) {
+        lastId = Math.max(lastId, m.id);
+        const isMine = m.user_id === userId;
+        const div = document.createElement('div');
+        div.className = 'chat-row ' + (isMine ? 'mine' : 'other');
+        let avatarHtml = '';
+        if (!isMine) {
+            if (m.user_img) {
+                avatarHtml = `<img src="${m.user_img}" class="chat-avatar">`;
+            } else {
+                avatarHtml = `<div class="chat-avatar-placeholder">${(m.user_name||'?')[0].toUpperCase()}</div>`;
+            }
+        }
+        let body = '';
+        if (!isMine) body += `<div class="chat-bubble__author">${m.user_name||'?'}</div>`;
+        if (m.text) body += `<div>${escapeHtml(m.text)}</div>`;
+        if (m.image_url) body += `<img src="${m.image_url}" class="chat-img--inline" onclick="window.open('${m.image_url}')" loading="lazy">`;
+        body += `<div class="chat-bubble__time">${new Date(m.created_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>`;
+        div.innerHTML = avatarHtml + `<div class="chat-bubble--chat">${body}</div>`;
+        container.appendChild(div);
+    }
+    if (wasAtBottom) container.scrollTop = container.scrollHeight;
+}
+
+async function sendText(e) {
+    e.preventDefault();
+    const input = document.getElementById('chat-input-bar');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const fd = new FormData();
+    fd.append('text', text);
+    const res = await api('/chat/messages', { method:'POST', body:fd, headers:{} });
+    if (res && res.ok) await loadMessages();
+}
+
+async function sendImage() {
+    const file = document.getElementById('image-input').files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await api('/chat/messages/image', { method:'POST', body:fd, headers:{} });
+    document.getElementById('image-input').value = '';
+    if (res && res.ok) await loadMessages();
+}
+
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+</script>
+{% endblock %}

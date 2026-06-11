@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Ajustes — La Porra del Bar{% endblock %}
+{% block content %}
+<div class="page-content page-content--padded-top">
+    <div class="section-header">
+        <span class="section-title">⚙️ Ajustes</span>
+    </div>
+
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div class="section-title" style="font-size:1rem; margin-bottom:1rem;">Foto de perfil</div>
+            <div class="flex items-center gap-4" style="margin-bottom:1rem;">
+                <img id="avatar-preview" class="avatar avatar--xl" src="" alt="" style="border-color:var(--gold);">
+                <div>
+                    <button onclick="document.getElementById('avatar-input').click()" class="btn btn-primary btn--sm">Cambiar foto</button>
+                    <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="uploadAvatar()">
+                    <div class="microcopy" style="text-align:left; padding-top:0.25rem;">JPG, PNG o WEBP. Máx 5 MB.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div class="section-title" style="font-size:1rem; margin-bottom:1rem;">Nombre</div>
+            <form id="name-form" class="space-y-3">
+                <div class="form-group">
+                    <input type="text" id="name-input" class="form-input" required minlength="1" maxlength="100" placeholder="Tu nombre">
+                </div>
+                <div id="name-error" class="error-msg hidden"></div>
+                <button type="submit" class="btn btn-primary">Guardar nombre</button>
+                <div id="name-ok" class="microcopy hidden" style="color:var(--green);">✓ Guardado</div>
+            </form>
+        </div>
+    </div>
+
+    <a href="/dashboard" class="section-link">← Volver al inicio</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+if (user.name) document.getElementById('name-input').value = user.name;
+if (user.img) document.getElementById('avatar-preview').src = user.img;
+
+document.getElementById('name-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('name-error');
+    const okEl = document.getElementById('name-ok');
+    errEl.classList.add('hidden'); okEl.classList.add('hidden');
+    const name = document.getElementById('name-input').value.trim();
+    if (!name) return;
+    const res = await api('/users/me', { method:'PATCH', body:JSON.stringify({name}) });
+    if (!res || !res.ok) {
+        const err = await res.json();
+        errEl.textContent = err.detail || 'Error';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    const data = await res.json();
+    setUser(data);
+    okEl.classList.remove('hidden');
+    setTimeout(() => okEl.classList.add('hidden'), 3000);
+});
+
+async function uploadAvatar() {
+    const file = document.getElementById('avatar-input').files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await api('/users/me/avatar', { method:'POST', body:fd, headers:{} });
+    document.getElementById('avatar-input').value = '';
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    setUser(data);
+    document.getElementById('avatar-preview').src = data.img;
+    renderUserNav(data);
+}
+</script>
+{% endblock %}

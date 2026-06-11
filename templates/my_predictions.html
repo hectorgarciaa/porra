@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+{% block title %}Mi Porra — La Porra del Bar{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <!-- Page header -->
+    <div style="margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between;">
+        <div>
+            <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.5rem; color:#1A1A2E;">📋 Mi Porra</h1>
+            <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;">Hay que confiar en el 1-0 rácano</p>
+        </div>
+        <div id="edit-btn-area"></div>
+    </div>
+
+    <!-- Empty state: no prediction -->
+    <div id="no-prediction" class="hidden">
+        <div class="card">
+            <div class="empty-state">
+                <div class="empty-state__icon">📋</div>
+                <div class="empty-state__title">Aún no has soltado tus melones</div>
+                <div class="empty-state__text">Crea tu porra antes de que tu colega te copie</div>
+                <div id="create-error" class="error-msg hidden" style="width:100%;"></div>
+                <button onclick="createPrediction()" id="btn-create" class="btn btn-primary btn--lg" style="margin-top:0.5rem;">
+                    🍺 Crear mi porra
+                </button>
+            </div>
+        </div>
+        <div class="fun-banner" style="margin-top:1rem;">
+            💡 "Aquí no vale mirar la del de al lado"
+        </div>
+    </div>
+
+    <!-- Has prediction -->
+    <div id="has-prediction" class="hidden">
+
+        <!-- Summary cards -->
+        <div id="summary-section" style="margin-bottom:1.25rem;">
+            <div class="card card--flat" style="margin-bottom:0.75rem; background: linear-gradient(135deg, var(--blue-light), var(--green-light)); border-color: var(--blue-mid);">
+                <div class="card-body">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                        <div>
+                            <div style="font-family:'Outfit',sans-serif; font-weight:700; color:#555E72; font-size:0.8125rem;">Tu porra está en marcha 🚀</div>
+                            <div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:2.25rem; color:var(--blue);" id="sum-points">0</div>
+                            <div style="font-size:0.75rem; color:#8892A4;">puntos (y subiendo)</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.5rem; color:var(--green);" id="sum-pct">0%</div>
+                            <div style="font-size:0.75rem; color:#8892A4;">completado</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar" style="margin-bottom:0.5rem;">
+                        <div class="progress-bar__fill" id="sum-progress" style="width:0%;"></div>
+                    </div>
+                    <div class="stat-row" style="margin-top:0.75rem;">
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-exact">0</div>
+                            <div class="stat-card__label">Resultados exactos</div>
+                        </div>
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-winners">0</div>
+                            <div class="stat-card__label">Ganadores</div>
+                        </div>
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-pending">0</div>
+                            <div class="stat-card__label">Pendientes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar" style="margin-bottom:1.25rem;">
+            <button class="tab-btn active" data-tab="matches-pred">Partidos</button>
+            <button class="tab-btn" data-tab="global">Predicción Global</button>
+        </div>
+
+        <!-- ── TAB PARTIDOS ───────────────────────────────── -->
+        <div id="tab-matches-pred" class="tab-content active">
+            <div class="chips-row" style="margin-bottom:1rem;">
+                <button class="chip active" onclick="filterPredMatches(this,'all')">Todos</button>
+                <button class="chip" onclick="filterPredMatches(this,'pending')">Pendientes</button>
+                <button class="chip" onclick="filterPredMatches(this,'played')">Jugados</button>
+                <button class="chip" onclick="filterPredMatches(this,'correct')">✅ Acertados</button>
+                <button class="chip" onclick="filterPredMatches(this,'wrong')">❌ Fallados</button>
+            </div>
+
+            <div id="pred-matches-list" class="space-y-2">
+                <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
+            </div>
+
+            <!-- Floating save bar -->
+            <div class="float-save-bar" id="float-save-bar" style="display:none;">
+                <div style="flex:1;">
+                    <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem;" id="save-bar-count">0 sin guardar</div>
+                    <div style="font-size:.7rem; color:#8892A4;">Recuerda guardar antes de salir</div>
+                </div>
+                <button class="btn btn-green btn--sm" onclick="saveAllPredictions()" id="btn-save-all">💾 Guardar todo</button>
+            </div>
+        </div>
+
+        <!-- ── TAB GLOBAL ─────────────────────────────────── -->
+        <div id="tab-global" class="tab-content">
+            <div id="global-form-container">
+                <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let predictionId = null;
+let globalData = null;
+let groupsCache = null;
+let teamsCache = {};
+let playersCache = {};
+let allPredMatches = [];
+let pendingChanges = {};
+const GLOBAL_DEADLINE = new Date('2026-06-23T23:59:59Z');
+
+/* ── Init ─────────────────────────────────────────────────── */
+async function init() {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const meRes = await api('/predictions/me');
+        if (!meRes) return;
+        if (meRes.status === 404) {
+            document.getElementById('no-prediction').classList.remove('hidden');
+            return;
+        }
+        if (!meRes.ok) return;
+        const pred = await meRes.json();
+        predictionId = pred.prediction.id;
+        globalData = pred.global_prediction;
+        document.getElementById('has-prediction').classList.remove('hidden');
+        updateSummary(pred.prediction);
+        loadMatchesForPrediction();
+        renderGlobalForm();
+    } catch(e) { console.error(e); }
+}
+
+/* ── Create prediction ────────────────────────────────────── */
+async function createPrediction() {
+    const btn = document.getElementById('btn-create');
+    const errEl = document.getElementById('create-error');
+    btn.disabled = true; btn.textContent = 'Creando...'; errEl.classList.add('hidden');
+    const res = await api('/predictions', { method: 'POST' });
+    if (!res || !res.ok) {
+        const e = await res?.json() || {};
+        errEl.textContent = e.detail || 'Error al crear la porra';
+        errEl.classList.remove('hidden');
+        btn.disabled = false; btn.textContent = '🍺 Crear mi porra';
+        return;
+    }
+    location.reload();
+}
+
+/* ── Summary ──────────────────────────────────────────────── */
+function updateSummary(prediction) {
+    document.getElementById('sum-points').textContent = prediction.points || 0;
+}
+
+function updateSummaryFromMatches(matches) {
+    const played = matches.filter(m => m.local_goals !== null);
+    const pending = matches.filter(m => m.local_goals === null);
+    const total = matches.length;
+    const withPred = matches.filter(m => m.my_prediction !== null).length;
+    const pct = total > 0 ? Math.round((withPred / total) * 100) : 0;
+    const exact = played.filter(m => m.my_prediction && m.my_prediction.local_goals === m.local_goals && m.my_prediction.away_goals === m.away_goals).length;
+    const winners = played.filter(m => {
+        if (!m.my_prediction) return false;
+        const realWinner = m.local_goals > m.away_goals ? m.local_team_id : (m.away_goals > m.local_goals ? m.away_team_id : null);
+        const predWinner = m.my_prediction.local_goals > m.my_prediction.away_goals ? m.local_team_id : (m.my_prediction.away_goals > m.my_prediction.local_goals ? m.away_team_id : null);
+        return realWinner !== null && realWinner === predWinner;
+    }).length;
+    document.getElementById('sum-pct').textContent = pct + '%';
+    document.getElementById('sum-progress').style.width = pct + '%';
+    document.getElementById('sum-exact').textContent = exact;
+    document.getElementById('sum-winners').textContent = winners;
+    document.getElementById('sum-pending').textContent = pending.filter(m => !m.my_prediction).length;
+}
+
+/* ── Load matches ─────────────────────────────────────────── */
+async function loadMatchesForPrediction() {
+    if (!groupsCache) {
+        const res = await api('/groups');
+        if (!res || !res.ok) return;
+        groupsCache = await res.json();
+    }
+    allPredMatches = [];
+    for (const g of groupsCache) {
+        const r = await api('/groups/' + g.id);
+        if (!r || !r.ok) continue;
+        const gd = await r.json();
+        for (const m of (gd.matches || [])) {
+            m.group_letter = g.letter;
+            m.my_prediction = null;
+            allPredMatches.push(m);
+        }
+    }
+    allPredMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+
+    // Get user's predictions
+    const predRes = await api('/predictions/me');
+    if (predRes && predRes.ok) {
+        const predData = await predRes.json();
+        const mpreds = predData.match_predictions || [];
+        for (const mp of mpreds) {
+            const m = allPredMatches.find(x => x.id === mp.match_id);
+            if (m) m.my_prediction = mp;
+        }
+    }
+
+    updateSummaryFromMatches(allPredMatches);
+    renderPredMatches(allPredMatches, 'all');
+}
+
+let currentPredFilter = 'all';
+function filterPredMatches(btn, filter) {
+    document.querySelectorAll('#tab-matches-pred .chips-row .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentPredFilter = filter;
+    renderPredMatches(allPredMatches, filter);
+}
+
+function renderPredMatches(matches, filter) {
+    const el = document.getElementById('pred-matches-list');
+    const now = new Date();
+    let filtered = matches;
+    if (filter === 'pending') filtered = matches.filter(m => m.local_goals === null);
+    if (filter === 'played')  filtered = matches.filter(m => m.local_goals !== null);
+    if (filter === 'correct') filtered = matches.filter(m => m.local_goals !== null && m.my_prediction && m.my_prediction.local_goals === m.local_goals && m.my_prediction.away_goals === m.away_goals);
+    if (filter === 'wrong')   filtered = matches.filter(m => m.local_goals !== null && (!m.my_prediction || m.my_prediction.local_goals !== m.local_goals || m.my_prediction.away_goals !== m.away_goals));
+
+    if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin partidos en esta categoría</div></div>';
+        return;
+    }
+
+    let html = '';
+    let currentDay = '';
+    for (const m of filtered) {
+        const day = new Date(m.kickoff_at).toLocaleDateString('es-ES', {weekday:'long',day:'numeric',month:'long'});
+        if (day !== currentDay) {
+            currentDay = day;
+            html += `<div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:0.8125rem; color:#8892A4; padding:0.5rem 0 0.25rem;">${day}</div>`;
+        }
+        html += renderPredMatchCard(m, now);
+    }
+    el.innerHTML = html;
+}
+
+function renderPredMatchCard(m, now) {
+    const started = now >= new Date(m.kickoff_at);
+    const played = m.local_goals !== null;
+    const hasPred = m.my_prediction !== null;
+    const pred = m.my_prediction;
+    const pending = pendingChanges[m.id];
+
+    let statusBadge = '';
+    let statusColor = 'var(--text-muted)';
+    if (played && hasPred) {
+        const exact = pred.local_goals === m.local_goals && pred.away_goals === m.away_goals;
+        statusBadge = exact ? '<span class="badge badge--green">✅ Pleno</span>' : '<span class="badge badge--coral">❌ Fallado</span>';
+    } else if (started && !played) {
+        statusBadge = '<span class="badge badge--gray">🔒 Bloqueado</span>';
+    } else if (hasPred) {
+        statusBadge = '<span class="badge badge--blue">📝 Predicho</span>';
+    } else {
+        statusBadge = '<span class="badge badge--gold">⏳ Pendiente</span>';
+    }
+
+    const predLocal = pending !== undefined ? pending.local : (pred?.local_goals ?? 0);
+    const predAway  = pending !== undefined ? pending.away  : (pred?.away_goals ?? 0);
+
+    const canEdit = !started;
+
+    return `
+    <div class="card card--flat" style="margin-bottom:.5rem; ${pending !== undefined ? 'border-color:var(--gold);' : ''}">
+        <div class="card-body--sm">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem;">
+                <span class="badge badge--gray" style="font-size:.6rem;">G${m.group_letter || '?'}</span>
+                ${statusBadge}
+            </div>
+            <div style="display:flex; align-items:center; gap:.5rem; justify-content:space-between;">
+                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; flex:1; text-align:right;">${m.local_team?.name || '?'}</span>
+
+                <div style="display:flex; align-items:center; gap:.375rem; flex-shrink:0;">
+                    ${canEdit ? `
+                    <div class="score-picker">
+                        <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',-1)" ${canEdit ? '' : 'disabled'}>−</button>
+                        <span class="score-picker__value" id="pred-local-${m.id}">${predLocal}</span>
+                        <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',1)" ${canEdit ? '' : 'disabled'}>+</button>
+                    </div>
+                    <span style="color:#8892A4;font-weight:700;font-size:1.125rem;">–</span>
+                    <div class="score-picker">
+                        <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',-1)" ${canEdit ? '' : 'disabled'}>−</button>
+                        <span class="score-picker__value" id="pred-away-${m.id}">${predAway}</span>
+                        <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',1)" ${canEdit ? '' : 'disabled'}>+</button>
+                    </div>
+                    ` : `
+                    <div style="text-align:center; min-width:4rem;">
+                        <span style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.25rem;color:var(--text-muted);">
+                            ${hasPred ? pred.local_goals + ' – ' + pred.away_goals : '? – ?'}
+                        </span>
+                        ${played ? `<div style="font-size:.65rem;color:#8892A4;">(Real: ${m.local_goals}–${m.away_goals})</div>` : ''}
+                    </div>
+                    `}
+                </div>
+
+                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; flex:1; text-align:left;">${m.away_team?.name || '?'}</span>
+            </div>
+
+            ${canEdit ? `
+            <div style="display:flex; justify-content:flex-end; margin-top:.5rem;">
+                <button class="btn btn-ghost btn--sm" onclick="saveSinglePrediction(${m.id})">
+                    💾 Guardar
+                </button>
+            </div>` : ''}
+        </div>
+    </div>`;
+}
+
+/* ── Score picker ─────────────────────────────────────────── */
+function adjustScore(matchId, team, delta) {
+    if (!pendingChanges[matchId]) {
+        const m = allPredMatches.find(x => x.id === matchId);
+        pendingChanges[matchId] = {
+            local: m?.my_prediction?.local_goals ?? 0,
+            away: m?.my_prediction?.away_goals ?? 0
+        };
+    }
+    if (team === 'local') pendingChanges[matchId].local = Math.max(0, pendingChanges[matchId].local + delta);
+    if (team === 'away')  pendingChanges[matchId].away  = Math.max(0, pendingChanges[matchId].away + delta);
+
+    const localEl = document.getElementById('pred-local-' + matchId);
+    const awayEl  = document.getElementById('pred-away-' + matchId);
+    if (localEl) localEl.textContent = pendingChanges[matchId].local;
+    if (awayEl)  awayEl.textContent  = pendingChanges[matchId].away;
+
+    updateFloatBar();
+}
+
+function updateFloatBar() {
+    const bar = document.getElementById('float-save-bar');
+    const count = Object.keys(pendingChanges).length;
+    if (count > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('save-bar-count').textContent = count + (count === 1 ? ' cambio sin guardar' : ' cambios sin guardar');
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+/* ── Save prediction ──────────────────────────────────────── */
+async function saveSinglePrediction(matchId) {
+    const change = pendingChanges[matchId];
+    if (!change) { showToast('No hay cambios que guardar', 'info'); return; }
+    const body = { local_goals: change.local, away_goals: change.away };
+    const res = await api('/predictions/matches/' + matchId, { method: 'POST', body: JSON.stringify(body) });
+    if (!res || !res.ok) { showToast('Error al guardar', 'error'); return; }
+    delete pendingChanges[matchId];
+    const m = allPredMatches.find(x => x.id === matchId);
+    if (m) { m.my_prediction = { ...m.my_prediction, local_goals: body.local_goals, away_goals: body.away_goals }; }
+    showToast('✅ Guardado', 'success');
+    updateFloatBar();
+    renderPredMatches(allPredMatches, currentPredFilter);
+}
+
+async function saveAllPredictions() {
+    const btn = document.getElementById('btn-save-all');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const ids = Object.keys(pendingChanges);
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+        const change = pendingChanges[id];
+        const body = { local_goals: change.local, away_goals: change.away };
+        const res = await api('/predictions/matches/' + id, { method: 'POST', body: JSON.stringify(body) });
+        if (res && res.ok) {
+            delete pendingChanges[id];
+            const m = allPredMatches.find(x => x.id === parseInt(id));
+            if (m) m.my_prediction = { ...m.my_prediction, local_goals: body.local_goals, away_goals: body.away_goals };
+            ok++;
+        } else { fail++; }
+    }
+    if (ok > 0) showToast(`✅ ${ok} guardados`, 'success');
+    if (fail > 0) showToast(`❌ ${fail} fallaron`, 'error');
+    btn.disabled = false; btn.textContent = '💾 Guardar todo';
+    updateFloatBar();
+    renderPredMatches(allPredMatches, currentPredFilter);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('#has-prediction .tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + btn.dataset.tab));
+    });
+});
+
+/* ── Global form ──────────────────────────────────────────── */
+async function loadTeamsForGlobal() {
+    if (!groupsCache) {
+        const res = await api('/groups');
+        if (!res || !res.ok) return;
+        groupsCache = await res.json();
+    }
+    for (const g of groupsCache) {
+        const r = await api('/groups/' + g.id);
+        if (!r || !r.ok) continue;
+        const gd = await r.json();
+        for (const t of (gd.standings || [])) {
+            teamsCache[t.team.id] = t.team;
+            const tr = await api('/teams/' + t.team.id);
+            if (tr && tr.ok) {
+                const td = await tr.json();
+                for (const p of (td.players || [])) playersCache[p.id] = p;
+            }
+        }
+    }
+}
+
+function renderGlobalForm() {
+    const el = document.getElementById('global-form-container');
+    const g = globalData;
+    const isPast = new Date() > GLOBAL_DEADLINE;
+    const disabled = isPast ? 'disabled' : '';
+    const notice = isPast
+        ? `<div class="error-msg" style="margin-bottom:1rem;">⚠️ El plazo para editar la predicción global finalizó el 23 de junio de 2026.</div>`
+        : `<div class="fun-banner" style="margin-bottom:1rem;">📝 Completa tu predicción global. Puedes editarla hasta el 23 de junio de 2026.</div>`;
+
+    const selects = [
+        { name:'winner_team_id',     label:'🏆 Campeón',          type:'team' },
+        { name:'runner_up_team_id',  label:'🥈 Subcampeón',        type:'team' },
+        { name:'third_place_team_id',label:'🥉 3er puesto',        type:'team' },
+        { name:'fourth_place_team_id',label:'4º puesto',           type:'team' },
+        { name:'best_player_player_id',label:'⭐ Mejor jugador',   type:'player' },
+        { name:'max_scorer_player_id',  label:'⚽ Máximo goleador', type:'player' },
+        { name:'max_assister_player_id',label:'👟 Máximo asistente',type:'player' },
+        { name:'max_yellow_cards_player_id',label:'🟡 Más amarillas',type:'player' },
+        { name:'max_red_cards_player_id',   label:'🟥 Más rojas',    type:'player' },
+    ];
+
+    el.innerHTML = notice + `<div class="card card--flat"><div class="card-body">
+        <form id="global-form" class="space-y-3">
+            ${selects.map(s => `
+            <div class="form-group">
+                <label class="form-label">${s.label}</label>
+                <select name="${s.name}" class="form-input" ${disabled}>
+                    <option value="">-- Elige --</option>
+                </select>
+            </div>`).join('')}
+            ${!isPast ? `<button type="submit" class="btn btn-primary btn--full">💾 Guardar predicción global</button>` : ''}
+            <div id="global-error" class="error-msg hidden"></div>
+        </form>
+    </div></div>`;
+
+    loadTeamsForGlobal().then(() => populateGlobalSelects(g));
+}
+
+function populateGlobalSelects(g) {
+    const teams = Object.values(teamsCache).sort((a, b) => a.name.localeCompare(b.name));
+    const players = Object.values(playersCache).sort((a, b) => (a.surname + a.name).localeCompare(b.surname + b.name));
+    const teamNames = ['winner_team_id','runner_up_team_id','third_place_team_id','fourth_place_team_id'];
+    const playerNames = ['best_player_player_id','max_scorer_player_id','max_assister_player_id','max_yellow_cards_player_id','max_red_cards_player_id'];
+
+    for (const name of teamNames) {
+        const sel = document.querySelector(`select[name="${name}"]`);
+        if (!sel) continue;
+        sel.innerHTML = '<option value="">-- Elige --</option>' + teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        if (g && g[name]) sel.value = g[name];
+    }
+    for (const name of playerNames) {
+        const sel = document.querySelector(`select[name="${name}"]`);
+        if (!sel) continue;
+        sel.innerHTML = '<option value="">-- Elige --</option>' + players.map(p => `<option value="${p.id}">${p.name} ${p.surname} (#${p.number})</option>`).join('');
+        if (g && g[name]) sel.value = g[name];
+    }
+
+    document.getElementById('global-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const errEl = document.getElementById('global-error');
+        errEl.classList.add('hidden');
+        const body = {};
+        for (const [k, v] of fd.entries()) body[k] = v ? parseInt(v) : null;
+        const res = await api('/predictions/global', { method: 'POST', body: JSON.stringify(body) });
+        if (!res || !res.ok) {
+            const err = await res?.json() || {};
+            errEl.textContent = err.detail || 'Error al guardar';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        showToast('✅ Predicción global guardada', 'success');
+        setTimeout(() => location.reload(), 1500);
+    });
+}
+
+init();
+</script>
+{% endblock %}

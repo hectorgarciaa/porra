@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}La Porra del Bar — El Mundial se juega también en el bar{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; display:flex; flex-direction:column; background: linear-gradient(180deg, #FFF8EE 0%, #F5EDD8 60%, #EDE3CA 100%);">
+
+    <!-- Hero top decorativo -->
+    <div style="position:relative; overflow:hidden; flex-shrink:0;">
+        <!-- Decoración de fondo -->
+        <div style="position:absolute; top:-2rem; right:-2rem; font-size:8rem; opacity:.06; transform:rotate(15deg); pointer-events:none;">⚽</div>
+        <div style="position:absolute; top:2rem; left:-1.5rem; font-size:5rem; opacity:.06; transform:rotate(-10deg); pointer-events:none;">🍺</div>
+
+        <div style="text-align:center; padding: 3rem 1.5rem 1.5rem;">
+            <!-- Logo / brand -->
+            <div style="margin-bottom:1rem;">
+                <span style="font-size:4rem; display:block; line-height:1;">🍺</span>
+            </div>
+            <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:2.5rem; line-height:1.1; color:#E85D3A; margin-bottom:0.375rem; letter-spacing:-.02em;">
+                La Porra
+            </h1>
+            <h2 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:2.5rem; line-height:1.1; color:#1A1A2E; margin-bottom:1.25rem; letter-spacing:-.02em;">
+                del Bar
+            </h2>
+            <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.0625rem; color:#555E72; margin-bottom:0.5rem;">
+                El Mundial se juega también en el bar
+            </div>
+            <div style="font-size:0.8125rem; color:#8892A4; font-style:italic;">
+                Si no arriesgas, no hay ronda 🍻
+            </div>
+        </div>
+    </div>
+
+    <!-- Ilustración central -->
+    <div style="flex:1; display:flex; align-items:center; justify-content:center; padding: 1.5rem;">
+        <div style="background:white; border-radius:2rem; box-shadow: 0 8px 32px rgba(26,26,46,.1); padding:2rem 1.5rem; width:100%; max-width:320px; text-align:center; position:relative; overflow:hidden;">
+            <!-- Fondo decorativo -->
+            <div style="position:absolute; inset:0; background: radial-gradient(circle at 80% 20%, rgba(43,127,232,.05) 0%, transparent 60%), radial-gradient(circle at 20% 80%, rgba(232,93,58,.05) 0%, transparent 60%); pointer-events:none;"></div>
+            <div style="position:relative;">
+                <div style="font-size:3.5rem; margin-bottom:0.875rem;">⚽🏖️🍺</div>
+                <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; color:#1A1A2E; margin-bottom:0.375rem;">
+                    Resultados, piques y barra
+                </div>
+                <div style="font-size:0.8125rem; color:#8892A4; margin-bottom:1.5rem; line-height:1.5;">
+                    Porque el fútbol es mejor en el bar.<br>
+                    <em>Aquí se viene llorado de casa.</em>
+                </div>
+
+                <!-- Reglas del bar -->
+                <div style="background:#FFF8EE; border:1.5px dashed #E8E4DA; border-radius:0.875rem; padding:0.875rem; text-align:left; margin-bottom:1.5rem;">
+                    <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:0.8125rem; color:#555E72; margin-bottom:0.5rem;">📋 Reglas del bar</div>
+                    <div style="font-size:0.75rem; color:#8892A4; line-height:1.8;">
+                        ✅ &nbsp;No hay VAR<br>
+                        ✅ &nbsp;Hay opinión<br>
+                        ✅ &nbsp;Y caña fría
+                    </div>
+                </div>
+
+                <!-- CTAs -->
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <a href="/login" class="btn btn-primary btn--lg btn--full" id="btn-entrar-bar">
+                        ⚽ Entrar al bar
+                    </a>
+                    <a href="/register" class="btn btn-ghost btn--full" id="btn-registrarse" style="font-family:'Outfit',sans-serif; font-weight:700;">
+                        🆕 Registrarse
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center; padding:1.5rem; color:#8892A4; font-size:0.6875rem;">
+        <div style="margin-bottom:0.25rem;">⚽ &nbsp;¡VAMOOOS!&nbsp; ⚽</div>
+        <div>Más opiniones que criterio · Puro dato y mucha barra</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Si ya tiene sesión, redirigir al dashboard
+if (localStorage.getItem('token')) {
+    window.location.replace('/dashboard');
+}
+</script>
+{% endblock %}

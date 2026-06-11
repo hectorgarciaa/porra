@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}¡Al bar se entra con cuenta! — La Porra del Bar{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; display:flex; flex-direction:column; background: linear-gradient(160deg, #FFF8EE 0%, #F5EDD8 100%);">
+
+    <!-- Header -->
+    <div style="text-align:center; padding:2.5rem 1.5rem 1.5rem;">
+        <a href="/" style="display:inline-block; margin-bottom:1.25rem; font-size:2.25rem;">🍺</a>
+        <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.625rem; color:#1A1A2E; line-height:1.2; margin-bottom:0.5rem;">
+            ¡Al bar se entra<br>con cuenta! 🍺
+        </h1>
+        <p style="font-size:0.875rem; color:#8892A4; font-style:italic;">
+            Y se sale llorado (o campeón)
+        </p>
+    </div>
+
+    <!-- Form card -->
+    <div style="flex:1; display:flex; align-items:flex-start; justify-content:center; padding:0 1.25rem 2rem;">
+        <div style="background:white; border-radius:1.75rem; box-shadow:0 8px 32px rgba(26,26,46,.1); padding:2rem; width:100%; max-width:400px;">
+
+            <form id="login-form" class="space-y-4">
+                <!-- Name -->
+                <div class="form-group">
+                    <label class="form-label" for="login-name">Nombre o alias</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input class="form-input form-input--icon-left" type="text" id="login-name" name="name"
+                               required autocomplete="username" placeholder="Tu alias en el bar">
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Contraseña</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input class="form-input form-input--icon-left" type="password" id="login-password" name="password"
+                               required autocomplete="current-password" placeholder="Tu contraseña secreta">
+                        <span class="input-icon-right" onclick="togglePwd('login-password', this)" title="Ver contraseña">👁️</span>
+                    </div>
+                </div>
+
+                <!-- Remember + forgot -->
+                <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8125rem;">
+                    <label style="display:flex; align-items:center; gap:0.375rem; color:#555E72; cursor:pointer;">
+                        <input type="checkbox" id="remember-me" name="remember" style="accent-color:#E85D3A;">
+                        Recuérdame
+                    </label>
+                    <a href="#" style="color:#2B7FE8; font-weight:600; font-size:0.8125rem;">¿Olvidaste la contraseña?</a>
+                </div>
+
+                <!-- Error -->
+                <div id="login-error" class="error-msg hidden"></div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn btn-primary btn--full btn--lg" id="btn-login">
+                    ⚽ Entrar al bar
+                </button>
+            </form>
+
+            <!-- Footer text -->
+            <div style="margin-top:1.5rem; text-align:center; padding-top:1.25rem; border-top:1px solid #E8E4DA;">
+                <p style="font-size:0.875rem; color:#8892A4;">
+                    ¿Aún no tienes cuenta?
+                    <a href="/register" style="color:#E85D3A; font-weight:700; font-family:'Outfit',sans-serif;">
+                        Únete al bar
+                    </a>
+                </p>
+                <p style="font-size:0.75rem; color:#8892A4; margin-top:0.5rem; font-style:italic;">
+                    P.D. Aquí no sale la misma de "se me olvidó" 😎
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePwd(id, btn) {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-login');
+    const errEl = document.getElementById('login-error');
+    btn.disabled = true;
+    btn.textContent = 'Entrando al bar...';
+    errEl.classList.add('hidden');
+    const fd = new FormData(e.target);
+    try {
+        await login(fd.get('name'), fd.get('password'));
+    } catch (err) {
+        errEl.textContent = err.message || 'Error al iniciar sesión';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '⚽ Entrar al bar';
+    }
+});
+</script>
+{% endblock %}

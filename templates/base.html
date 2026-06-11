@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="La Porra del Bar — Predice el Mundial, compite con tus amigos y demuestra que sabes más que el cuñado.">
+    <title>{% block title %}La Porra del Bar{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+<div class="app-shell">
+
+    {% block topbar %}
+    <header class="app-header">
+        <a href="/dashboard" class="app-header__logo">
+            <span class="app-header__logo-icon">🍺</span>
+            <span>La Porra del Bar</span>
+        </a>
+        <div class="app-header__actions">
+            {% block header_actions %}
+            <button class="header-icon-btn" onclick="logout()" title="Salir" id="btn-logout">👋</button>
+            {% endblock %}
+        </div>
+    </header>
+    {% endblock %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block bottom_nav %}
+    <nav class="bottom-nav">
+        <a href="/dashboard" class="bottom-nav__item" title="Inicio">
+            <span class="bottom-nav__icon">🏠</span>
+            <span class="bottom-nav__label">Inicio</span>
+        </a>
+        <a href="/classification" class="bottom-nav__item" title="Clasificación">
+            <span class="bottom-nav__icon">🏆</span>
+            <span class="bottom-nav__label">Ranking</span>
+        </a>
+        <a href="/my-predictions" class="bottom-nav__item" title="Mi Porra">
+            <span class="bottom-nav__icon">📋</span>
+            <span class="bottom-nav__label">Mi Porra</span>
+        </a>
+        <a href="/world-cup" class="bottom-nav__item" title="Mundial">
+            <span class="bottom-nav__icon">⚽</span>
+            <span class="bottom-nav__label">Mundial</span>
+        </a>
+        <a href="/bar" class="bottom-nav__item" title="El Bar">
+            <span class="bottom-nav__icon">🍻</span>
+            <span class="bottom-nav__label">El Bar</span>
+        </a>
+    </nav>
+    {% endblock %}
+
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

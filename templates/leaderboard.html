@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Clasificación — La Porra del Bar{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <!-- Page header -->
+    <div style="margin-bottom:1.25rem;">
+        <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.5rem; color:#1A1A2E;">
+            🏆 Clasificación
+        </h1>
+        <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;">Puro dato y mucha barra</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar" style="margin-bottom:1.25rem;">
+        <button class="tab-btn active" data-tab="ranking" id="tab-btn-ranking">Ranking</button>
+        <button class="tab-btn" data-tab="evolution" id="tab-btn-evolution">Evolución</button>
+    </div>
+
+    <!-- ── TAB RANKING ─────────────────────────────────────────── -->
+    <div id="tab-ranking" class="tab-content active">
+
+        <!-- Filter chips -->
+        <div class="chips-row" style="margin-bottom:1rem;">
+            <button class="chip active" data-filter="general" onclick="setFilter(this, 'general')">General</button>
+            <button class="chip" data-filter="perfect" onclick="setFilter(this, 'perfect')">Resultado perfecto</button>
+            <button class="chip" data-filter="cunado" onclick="setFilter(this, 'cunado')">Cuñado experto</button>
+        </div>
+
+        <!-- Ranking card -->
+        <div class="card card--flat">
+            <div id="ranking-list">
+                <div class="loading-spinner"><div class="spinner"></div> Cargando ranking...</div>
+            </div>
+        </div>
+
+        <div class="microcopy" style="margin-top:0.75rem;">
+            💡 "El cuñado tiene datos... y mucha suerte"
+        </div>
+
+    </div>
+
+    <!-- ── TAB EVOLUCIÓN ──────────────────────────────────────── -->
+    <div id="tab-evolution" class="tab-content">
+
+        <!-- Range selector -->
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+            <button class="chip active" onclick="setRange(this,'7d')">7D</button>
+            <button class="chip" onclick="setRange(this,'30d')">30D</button>
+            <button class="chip" onclick="setRange(this,'all')">Mundial</button>
+        </div>
+
+        <div class="card card--flat">
+            <div class="card-body">
+                <div id="evolution-chart">
+                    <div class="loading-spinner"><div class="spinner"></div> Cargando evolución...</div>
+                </div>
+                <div id="evo-legend" class="evo-legend" style="margin-top:0.75rem;"></div>
+            </div>
+        </div>
+
+        <div class="microcopy" style="margin-top:0.75rem;">
+            📈 "Se viene remontada y argumento regulero"
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Filter state ─────────────────────────────────────────── */
+let rankingData = [];
+let currentFilter = 'general';
+
+function setFilter(btn, filter) {
+    document.querySelectorAll('.chips-row .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = filter;
+    renderRanking(rankingData, filter);
+}
+
+function setRange(btn, range) {
+    document.querySelectorAll('#tab-evolution .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+/* ── Badges ───────────────────────────────────────────────── */
+const BADGES = [
+    { label: '👑 Líder moral',     color: '#C9A227', bg: '#FFF8E0' },
+    { label: '🎯 Rey del pleno',   color: '#27AE60', bg: '#E8F8F0' },
+    { label: '🧠 Cuñado con datos',color: '#2B7FE8', bg: '#E8F2FF' },
+    { label: '😴 Vive de rentas',  color: '#8892A4', bg: '#F0F2F5' },
+];
+
+/* ── Render ranking ───────────────────────────────────────── */
+function renderRanking(data, filter) {
+    const el = document.getElementById('ranking-list');
+    if (!data.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-state__icon">😴</div><div class="empty-state__title">Nadie ha puntuado aún</div></div>`;
+        return;
+    }
+
+    const currentUser = getUser();
+    let sorted = [...data];
+    if (filter === 'perfect')    sorted.sort((a, b) => (b.perfect_results || 0) - (a.perfect_results || 0));
+    else if (filter === 'cunado') sorted.sort((a, b) => (b.exact_winners || 0) - (a.exact_winners || 0));
+
+    const medals = ['🥇','🥈','🥉'];
+
+    el.innerHTML = sorted.map((u, i) => {
+        const badge = BADGES[Math.min(i, BADGES.length - 1)];
+        const isMe = u.name === currentUser.name;
+        return `
+        <div class="rank-item" style="${isMe ? 'background:var(--coral-light);' : ''}">
+            <span class="rank-pos rank-pos--${i+1}">${medals[i] || (i+1)}</span>
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span class="rank-name">${u.name}${isMe ? ' <span style="color:var(--coral);font-size:.7rem;">(tú)</span>' : ''}</span>
+                    ${i < 4 ? `<span style="font-size:.625rem; font-weight:700; padding:.1rem .5rem; border-radius:9999px; background:${badge.bg}; color:${badge.color};">${badge.label}</span>` : ''}
+                </div>
+                <div style="font-size:.7rem; color:#8892A4; margin-top:.15rem;">
+                    ${u.exact_results !== undefined ? `🎯 ${u.exact_results} plenos` : ''}
+                    ${u.exact_winners !== undefined ? ` · ✅ ${u.exact_winners} ganadores` : ''}
+                </div>
+            </div>
+            <span class="rank-points">${u.points}</span>
+        </div>`;
+    }).join('');
+}
+
+/* ── Load ranking ─────────────────────────────────────────── */
+async function loadRanking() {
+    const res = await api('/leaderboard');
+    if (!res || !res.ok) return;
+    rankingData = await res.json();
+    renderRanking(rankingData, currentFilter);
+}
+
+/* ── Load evolution ───────────────────────────────────────── */
+const CHART_COLORS = [
+    '#E85D3A','#2B7FE8','#27AE60','#F5A623',
+    '#9B59B6','#E91E63','#00BCD4','#FF9800',
+];
+
+async function loadEvolution() {
+    const el = document.getElementById('evolution-chart');
+    const legEl = document.getElementById('evo-legend');
+    const res = await api('/leaderboard/evolution');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">No hay datos de evolución aún</p>'; return; }
+    const events = await res.json();
+    if (!events.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">📊</div><div class="empty-state__title">Todavía no hay datos</div><div class="empty-state__text">La evolución aparecerá cuando haya partidos jugados</div></div>';
+        return;
+    }
+
+    const users = {};
+    const labels = [];
+    for (const ev of events) {
+        const m = ev.match;
+        labels.push((m.local_team?.name || '?').substring(0,3) + '-' + (m.away_team?.name || '?').substring(0,3));
+        for (const s of ev.scores) {
+            const uid = s.user.id;
+            if (!users[uid]) users[uid] = { name: s.user.name, points: [] };
+            users[uid].points.push(s.points_total);
+        }
+    }
+
+    const userList = Object.values(users);
+    const W = Math.max(300, labels.length * 50 + 60);
+    const H = 220;
+    const PAD = { top: 20, right: 20, bottom: 40, left: 40 };
+    const innerW = W - PAD.left - PAD.right;
+    const innerH = H - PAD.top - PAD.bottom;
+
+    const allPoints = userList.flatMap(u => u.points);
+    const maxPts = Math.max(...allPoints, 1);
+    const minPts = Math.min(...allPoints, 0);
+    const range = maxPts - minPts || 1;
+
+    function x(i) { return PAD.left + (i / Math.max(labels.length - 1, 1)) * innerW; }
+    function y(v) { return PAD.top + innerH - ((v - minPts) / range) * innerH; }
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;">`;
+
+    // Grid lines
+    for (let i = 0; i <= 4; i++) {
+        const yv = PAD.top + (i / 4) * innerH;
+        svg += `<line x1="${PAD.left}" y1="${yv}" x2="${W - PAD.right}" y2="${yv}" stroke="#E8E4DA" stroke-width="1"/>`;
+        const val = Math.round(maxPts - (i / 4) * range);
+        svg += `<text x="${PAD.left - 4}" y="${yv + 4}" text-anchor="end" font-size="9" fill="#8892A4">${val}</text>`;
+    }
+
+    // X labels
+    labels.forEach((l, i) => {
+        if (i % Math.max(1, Math.floor(labels.length / 6)) === 0) {
+            svg += `<text x="${x(i)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="#8892A4">${l}</text>`;
+        }
+    });
+
+    // Lines + dots
+    userList.forEach((u, ci) => {
+        const color = CHART_COLORS[ci % CHART_COLORS.length];
+        const pts = u.points;
+        const path = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(v)}`).join(' ');
+        svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        pts.forEach((v, i) => {
+            if (i === pts.length - 1) {
+                svg += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
+            }
+        });
+    });
+
+    svg += '</svg>';
+    el.innerHTML = `<div class="evo-chart">${svg}</div>`;
+
+    legEl.innerHTML = userList.map((u, ci) => {
+        const color = CHART_COLORS[ci % CHART_COLORS.length];
+        return `<div class="evo-legend__item"><div class="evo-legend__dot" style="background:${color};"></div><span>${u.name}</span></div>`;
+    }).join('');
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+let evolutionLoaded = false;
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + btn.dataset.tab));
+        if (btn.dataset.tab === 'evolution' && !evolutionLoaded) {
+            evolutionLoaded = true;
+            loadEvolution();
+        }
+    });
+});
+
+loadRanking();
+</script>
+{% endblock %}

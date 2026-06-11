@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+{% block title %}Admin — La Porra del Bar{% endblock %}
+
+{% block topbar %}
+<header class="app-header">
+    <a href="/dashboard" class="app-header__logo">
+        <span class="app-header__logo-icon">🍺</span>
+        <span>La Porra del Bar</span>
+    </a>
+    <div class="app-header__actions">
+        <span class="badge badge--coral">⚙️ Admin</span>
+        <button class="header-icon-btn" onclick="adminLogout()" title="Salir de admin">🚪</button>
+    </div>
+</header>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+
+<!-- ── GATE: password screen ─────────────────────────────── -->
+<div id="gate" style="min-height:80vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
+    <div style="background:white; border-radius:1.75rem; box-shadow:0 8px 32px rgba(26,26,46,.1); padding:2.5rem 2rem; width:100%; max-width:380px; text-align:center;">
+        <div style="font-size:3rem; margin-bottom:1rem;">⚙️</div>
+        <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.375rem; margin-bottom:0.375rem;">Panel de administración</h1>
+        <p style="font-size:0.8125rem; color:#8892A4; margin-bottom:1.75rem;">Solo para los que saben la clave del bar</p>
+
+        <form id="gate-form" class="space-y-4">
+            <div class="input-wrapper">
+                <span class="input-icon">🔑</span>
+                <input class="form-input form-input--icon-left" type="password" id="admin-pass"
+                       placeholder="Contraseña del bar" autocomplete="off">
+            </div>
+            <div id="gate-error" class="error-msg hidden"></div>
+            <button type="submit" class="btn btn-primary btn--full">Entrar al admin</button>
+        </form>
+    </div>
+</div>
+
+<!-- ── ADMIN PANEL ─────────────────────────────────────────── -->
+<div id="admin-panel" class="hidden">
+    <div style="padding:1rem 1rem 6rem;">
+
+        <!-- Header -->
+        <div style="margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.375rem;">⚙️ Gestión de resultados</h1>
+                <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;">Actualiza los resultados de los partidos</p>
+            </div>
+            <span class="badge badge--coral" id="admin-user-badge"></span>
+        </div>
+
+        <!-- Filter chips -->
+        <div class="chips-row" style="margin-bottom:1rem;">
+            <button class="chip active" onclick="adminFilter(this,'all')">Todos</button>
+            <button class="chip" onclick="adminFilter(this,'pending')">⏳ Sin resultado</button>
+            <button class="chip" onclick="adminFilter(this,'played')">✅ Con resultado</button>
+        </div>
+
+        <!-- Search -->
+        <div class="input-wrapper" style="margin-bottom:1rem;">
+            <span class="input-icon">🔍</span>
+            <input class="form-input form-input--icon-left" type="text" id="admin-search"
+                   placeholder="Buscar por equipo o sede..." oninput="adminFilterSearch()">
+        </div>
+
+        <!-- Matches list -->
+        <div id="admin-matches">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── RESULT MODAL ─────────────────────────────────────────── -->
+<div id="result-modal" style="
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(26,26,46,.6); backdrop-filter:blur(4px);
+    align-items:flex-end; justify-content:center;
+">
+    <div id="modal-sheet" style="
+        background:var(--cream); border-radius:1.75rem 1.75rem 0 0;
+        padding:1.75rem 1.5rem 2.5rem; width:100%; max-width:480px;
+        box-shadow: 0 -8px 32px rgba(26,26,46,.15);
+        transform: translateY(100%); transition: transform .35s cubic-bezier(.4,0,.2,1);
+    ">
+        <div style="width:2.5rem; height:4px; background:var(--border); border-radius:2px; margin:0 auto 1.25rem;"></div>
+
+        <h2 id="modal-title" style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.125rem; margin-bottom:0.25rem;"></h2>
+        <p id="modal-subtitle" style="font-size:0.75rem; color:#8892A4; margin-bottom:1.25rem;"></p>
+
+        <form id="result-form" class="space-y-4">
+            <!-- Marcador -->
+            <div>
+                <div class="form-label" style="margin-bottom:.5rem;">Marcador final</div>
+                <div style="display:flex; align-items:center; justify-content:center; gap:1rem;">
+                    <div style="text-align:center;">
+                        <div id="local-team-name" style="font-size:.8125rem; color:#8892A4; margin-bottom:.375rem;"></div>
+                        <div class="score-picker">
+                            <button type="button" class="score-picker__btn" onclick="adj('local',-1)">−</button>
+                            <span class="score-picker__value" id="inp-local">0</span>
+                            <button type="button" class="score-picker__btn" onclick="adj('local',1)">+</button>
+                        </div>
+                    </div>
+                    <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.5rem; color:#8892A4;">–</span>
+                    <div style="text-align:center;">
+                        <div id="away-team-name" style="font-size:.8125rem; color:#8892A4; margin-bottom:.375rem;"></div>
+                        <div class="score-picker">
+                            <button type="button" class="score-picker__btn" onclick="adj('away',-1)">−</button>
+                            <span class="score-picker__value" id="inp-away">0</span>
+                            <button type="button" class="score-picker__btn" onclick="adj('away',1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prórroga & penaltis -->
+            <div style="display:flex; gap:1.5rem; justify-content:center;">
+                <label style="display:flex; align-items:center; gap:.375rem; font-size:.875rem; color:#555E72; cursor:pointer;">
+                    <input type="checkbox" id="inp-extra" style="accent-color:var(--blue); width:1rem; height:1rem;"
+                           onchange="togglePenalties()"> Prórroga
+                </label>
+                <label style="display:flex; align-items:center; gap:.375rem; font-size:.875rem; color:#555E72; cursor:pointer;">
+                    <input type="checkbox" id="inp-pens" style="accent-color:var(--coral); width:1rem; height:1rem;"
+                           onchange="togglePenalties()"> Penaltis
+                </label>
+            </div>
+
+            <!-- Penalti score (hidden by default) -->
+            <div id="pens-section" style="display:none; background:var(--coral-light); border-radius:var(--r); padding:.875rem; text-align:center;">
+                <div class="form-label" style="margin-bottom:.5rem; color:var(--coral-dark);">Resultado en penaltis</div>
+                <div style="display:flex; align-items:center; justify-content:center; gap:1rem;">
+                    <div class="score-picker">
+                        <button type="button" class="score-picker__btn" onclick="adj('local-pen',-1)">−</button>
+                        <span class="score-picker__value" id="inp-local-pen">0</span>
+                        <button type="button" class="score-picker__btn" onclick="adj('local-pen',1)">+</button>
+                    </div>
+                    <span style="font-weight:800; color:#8892A4;">–</span>
+                    <div class="score-picker">
+                        <button type="button" class="score-picker__btn" onclick="adj('away-pen',-1)">−</button>
+                        <span class="score-picker__value" id="inp-away-pen">0</span>
+                        <button type="button" class="score-picker__btn" onclick="adj('away-pen',1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goleadores -->
+            <div id="scorers-section">
+                <div class="form-label" style="margin-bottom:.5rem;">⚽ Goleadores <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
+                <div id="scorers-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
+                <select id="scorer-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('scorers', this)">
+                    <option value="">+ Añadir goleador</option>
+                </select>
+            </div>
+
+            <!-- Asistentes -->
+            <div id="assists-section">
+                <div class="form-label" style="margin-bottom:.5rem;">👟 Asistentes <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
+                <div id="assists-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
+                <select id="assist-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('assists', this)">
+                    <option value="">+ Añadir asistente</option>
+                </select>
+            </div>
+
+            <!-- Tarjetas -->
+            <div>
+                <div class="form-label" style="margin-bottom:.5rem;">🟡 Amarillas <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
+                <div id="yellows-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
+                <select id="yellow-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('yellows', this)">
+                    <option value="">+ Añadir amarilla</option>
+                </select>
+            </div>
+            <div>
+                <div class="form-label" style="margin-bottom:.5rem;">🟥 Rojas <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
+                <div id="reds-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
+                <select id="red-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('reds', this)">
+                    <option value="">+ Añadir roja</option>
+                </select>
+            </div>
+
+            <!-- Error -->
+            <div id="result-error" class="error-msg hidden"></div>
+
+            <!-- Actions -->
+            <div style="display:flex; gap:.75rem;">
+                <button type="button" class="btn btn-ghost btn--full" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-green btn--full" id="btn-save-result">✅ Guardar resultado</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Admin auth (frontend only) ─────────────────────────────── */
+const ADMIN_PASSWORD = 'mundial';
+const ADMIN_KEY = 'porra_admin_unlocked';
+
+function adminLogout() {
+    sessionStorage.removeItem(ADMIN_KEY);
+    location.reload();
+}
+
+function checkAdminGate() {
+    if (sessionStorage.getItem(ADMIN_KEY) === '1') {
+        showPanel();
+    }
+}
+
+document.getElementById('gate-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pass = document.getElementById('admin-pass').value;
+    const errEl = document.getElementById('gate-error');
+    if (pass === ADMIN_PASSWORD) {
+        sessionStorage.setItem(ADMIN_KEY, '1');
+        showPanel();
+    } else {
+        errEl.textContent = '❌ Contraseña incorrecta. Pista: ¿en qué torneo estamos?';
+        errEl.classList.remove('hidden');
+        document.getElementById('admin-pass').value = '';
+    }
+});
+
+function showPanel() {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('admin-panel').classList.remove('hidden');
+    const user = getUser();
+    const badge = document.getElementById('admin-user-badge');
+    if (badge && user.name) badge.textContent = '👤 ' + user.name;
+    loadAdminMatches();
+}
+
+/* ── Match loading ───────────────────────────────────────────── */
+let adminMatches = [];
+let matchPlayers = {};
+let currentMatchId = null;
+let adminFilterMode = 'all';
+let selected = { scorers: [], assists: [], yellows: [], reds: [] };
+let scores = { local: 0, away: 0, localPen: 0, awayPen: 0 };
+
+async function loadAdminMatches() {
+    const el = document.getElementById('admin-matches');
+    const res = await api('/groups');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error al cargar</p>'; return; }
+    const groups = await res.json();
+    adminMatches = [];
+    for (const g of groups) {
+        const r = await api('/groups/' + g.id);
+        if (!r || !r.ok) continue;
+        const gd = await r.json();
+        for (const m of (gd.matches || [])) {
+            m.group_letter = g.letter;
+            m.group_id = g.id;
+            adminMatches.push(m);
+            // Cache players per team
+            for (const s of (gd.standings || [])) {
+                if (!matchPlayers[s.team.id]) {
+                    const tr = await api('/teams/' + s.team.id);
+                    if (tr && tr.ok) {
+                        const td = await tr.json();
+                        matchPlayers[s.team.id] = td.players || [];
+                    }
+                }
+            }
+        }
+    }
+    adminMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+    renderAdminMatches(adminMatches);
+}
+
+function adminFilter(btn, mode) {
+    document.querySelectorAll('#admin-panel .chips-row .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    adminFilterMode = mode;
+    adminFilterSearch();
+}
+
+function adminFilterSearch() {
+    const q = document.getElementById('admin-search').value.toLowerCase();
+    let filtered = adminMatches;
+    if (adminFilterMode === 'pending') filtered = filtered.filter(m => m.local_goals === null);
+    if (adminFilterMode === 'played')  filtered = filtered.filter(m => m.local_goals !== null);
+    if (q) filtered = filtered.filter(m =>
+        (m.local_team?.name || '').toLowerCase().includes(q) ||
+        (m.away_team?.name || '').toLowerCase().includes(q) ||
+        (m.venue || '').toLowerCase().includes(q)
+    );
+    renderAdminMatches(filtered);
+}
+
+function renderAdminMatches(matches) {
+    const el = document.getElementById('admin-matches');
+    if (!matches.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin partidos</div></div>';
+        return;
+    }
+
+    let html = '';
+    let currentDay = '';
+    for (const m of matches) {
+        const day = new Date(m.kickoff_at).toLocaleDateString('es-ES', {weekday:'long',day:'numeric',month:'long'});
+        if (day !== currentDay) {
+            currentDay = day;
+            html += `<div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.8125rem; color:#8892A4; padding:.625rem 0 .25rem;">${day}</div>`;
+        }
+        const played = m.local_goals !== null;
+        const time = new Date(m.kickoff_at).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'});
+        html += `
+        <div class="card card--flat" style="margin-bottom:.625rem;">
+            <div class="card-body--sm">
+                <div style="display:flex; align-items:center; gap:.75rem;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+                            <span class="badge badge--gray" style="font-size:.6rem;">G${m.group_letter}</span>
+                            ${played ? '<span class="badge badge--green">✅ Resultado</span>' : `<span class="badge badge--gold">⏳ ${time}</span>`}
+                        </div>
+                        <div style="display:flex; align-items:center; gap:.625rem; margin-top:.375rem;">
+                            <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.9375rem; flex:1; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.local_team?.name || '?'}</span>
+                            <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.125rem; padding:.2rem .5rem; background:var(--sand-dark); border-radius:.5rem; min-width:3rem; text-align:center; flex-shrink:0;">
+                                ${played ? m.local_goals + ' – ' + m.away_goals : 'vs'}
+                            </span>
+                            <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.9375rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.away_team?.name || '?'}</span>
+                        </div>
+                        ${m.venue ? `<div style="font-size:.7rem; color:#8892A4; margin-top:.25rem;">📍 ${m.venue}</div>` : ''}
+                    </div>
+                    <button class="btn btn-primary btn--sm" style="flex-shrink:0;" onclick="openModal(${m.id})">
+                        ${played ? '✏️ Editar' : '⚽ Resultado'}
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    }
+    el.innerHTML = html;
+}
+
+/* ── Modal ───────────────────────────────────────────────────── */
+function openModal(matchId) {
+    const m = adminMatches.find(x => x.id === matchId);
+    if (!m) return;
+    currentMatchId = matchId;
+    selected = { scorers: [], assists: [], yellows: [], reds: [] };
+    scores = {
+        local: m.local_goals ?? 0,
+        away: m.away_goals ?? 0,
+        localPen: m.local_penalties ?? 0,
+        awayPen: m.away_penalties ?? 0
+    };
+
+    // Set values
+    document.getElementById('inp-local').textContent = scores.local;
+    document.getElementById('inp-away').textContent = scores.away;
+    document.getElementById('inp-local-pen').textContent = scores.localPen;
+    document.getElementById('inp-away-pen').textContent = scores.awayPen;
+    document.getElementById('inp-extra').checked = !!m.has_extra_time;
+    document.getElementById('inp-pens').checked = !!m.has_penalties;
+    document.getElementById('local-team-name').textContent = m.local_team?.name || '?';
+    document.getElementById('away-team-name').textContent = m.away_team?.name || '?';
+
+    const date = new Date(m.kickoff_at).toLocaleDateString('es-ES', {weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('modal-title').textContent = (m.local_team?.name || '?') + ' vs ' + (m.away_team?.name || '?');
+    document.getElementById('modal-subtitle').textContent = `Grupo ${m.group_letter} · ${date}`;
+
+    togglePenalties();
+    document.getElementById('result-error').classList.add('hidden');
+
+    // Populate player dropdowns
+    const localPlayers = matchPlayers[m.local_team_id] || [];
+    const awayPlayers = matchPlayers[m.away_team_id] || [];
+    const allPlayers = [...localPlayers, ...awayPlayers];
+
+    const pickerIds = ['scorer-picker','assist-picker','yellow-picker','red-picker'];
+    for (const pid of pickerIds) {
+        const sel = document.getElementById(pid);
+        sel.innerHTML = '<option value="">+ Añadir jugador</option>' +
+            allPlayers.map(p => `<option value="${p.id}">${p.name} ${p.surname} (${p.number})</option>`).join('');
+    }
+
+    // Clear tag containers
+    ['scorers','assists','yellows','reds'].forEach(k => {
+        document.getElementById(k + '-container').innerHTML = '';
+        selected[k] = [];
+    });
+
+    // Show modal
+    const modal = document.getElementById('result-modal');
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        document.getElementById('modal-sheet').style.transform = 'translateY(0)';
+    });
+}
+
+function closeModal() {
+    document.getElementById('modal-sheet').style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        document.getElementById('result-modal').style.display = 'none';
+    }, 350);
+}
+
+// Close on overlay click
+document.getElementById('result-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('result-modal')) closeModal();
+});
+
+/* ── Score adjustment ───────────────────────────────────────── */
+function adj(side, delta) {
+    const map = { 'local': 'inp-local', 'away': 'inp-away', 'local-pen': 'inp-local-pen', 'away-pen': 'inp-away-pen' };
+    const scoreMap = { 'local': 'local', 'away': 'away', 'local-pen': 'localPen', 'away-pen': 'awayPen' };
+    const key = scoreMap[side];
+    scores[key] = Math.max(0, scores[key] + delta);
+    document.getElementById(map[side]).textContent = scores[key];
+}
+
+function togglePenalties() {
+    const pens = document.getElementById('inp-pens').checked;
+    document.getElementById('pens-section').style.display = pens ? 'block' : 'none';
+}
+
+/* ── Player tags ────────────────────────────────────────────── */
+function addPlayer(category, select) {
+    const val = select.value;
+    if (!val) return;
+    const text = select.options[select.selectedIndex].text;
+    const id = parseInt(val);
+    if (selected[category].includes(id)) { select.value = ''; return; }
+    selected[category].push(id);
+
+    const containerId = category + '-container';
+    const container = document.getElementById(containerId);
+    const tag = document.createElement('span');
+    tag.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem;background:var(--blue-light);border:1px solid var(--blue-mid);color:var(--blue);border-radius:9999px;padding:.2rem .625rem;font-size:.75rem;font-weight:600;';
+    tag.innerHTML = `${text} <button type="button" onclick="removePlayer('${category}', ${id}, this.parentElement)" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
+    container.appendChild(tag);
+    select.value = '';
+}
+
+function removePlayer(category, id, tagEl) {
+    selected[category] = selected[category].filter(x => x !== id);
+    tagEl.remove();
+}
+
+/* ── Submit result ──────────────────────────────────────────── */
+document.getElementById('result-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-result');
+    const errEl = document.getElementById('result-error');
+    errEl.classList.add('hidden');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+
+    const hasPens = document.getElementById('inp-pens').checked;
+    const hasExtra = document.getElementById('inp-extra').checked || hasPens;
+
+    // Determine winner (needed for knockout phases)
+    const m = adminMatches.find(x => x.id === currentMatchId);
+    let winnerId = null;
+    if (hasPens) {
+        winnerId = scores.localPen > scores.awayPen ? m?.local_team_id : m?.away_team_id;
+    } else if (scores.local !== scores.away) {
+        winnerId = scores.local > scores.away ? m?.local_team_id : m?.away_team_id;
+    }
+
+    const body = {
+        local_goals: scores.local,
+        away_goals: scores.away,
+        winner_id: winnerId,
+        scorer_ids: selected.scorers,
+        assists_ids: selected.assists,
+        yellow_card_ids: selected.yellows,
+        red_card_ids: selected.reds,
+        has_extra_time: hasExtra,
+        has_penalties: hasPens,
+        local_penalties: hasPens ? scores.localPen : null,
+        away_penalties: hasPens ? scores.awayPen : null,
+    };
+
+    const res = await api(`/matches/${currentMatchId}/result`, {
+        method: 'PUT',
+        body: JSON.stringify(body)
+    });
+
+    btn.disabled = false; btn.textContent = '✅ Guardar resultado';
+
+    if (!res || !res.ok) {
+        const err = await res?.json().catch(() => ({})) || {};
+        errEl.textContent = err.detail || 'Error al guardar. ¿Estás autenticado?';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    // Update local cache
+    const idx = adminMatches.findIndex(x => x.id === currentMatchId);
+    if (idx >= 0) {
+        adminMatches[idx].local_goals = scores.local;
+        adminMatches[idx].away_goals = scores.away;
+    }
+
+    showToast('✅ Resultado guardado y puntuaciones actualizadas', 'success', 4000);
+    closeModal();
+    setTimeout(adminFilterSearch, 400);
+});
+
+/* ── Init ───────────────────────────────────────────────────── */
+checkAdminGate();
+</script>
+{% endblock %}
