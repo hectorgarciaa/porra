@@ -293,47 +293,54 @@ function renderPredMatchCard(m, now) {
     return `
     <div class="card card--flat" style="margin-bottom:.5rem; ${pending !== undefined ? 'border-color:var(--gold);' : ''}">
         <div class="card-body--sm">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.4rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem;">
                 <span class="badge badge--gray" style="font-size:.6rem;">G${m.group_letter || '?'}</span>
                 ${statusBadge}
             </div>
-            <div style="display:flex; align-items:center; gap:.25rem;">
-                <div style="flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:flex-end; gap:.25rem;">
-                    ${localFlag ? `<img src="${localFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
-                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.8125rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;">${m.local_team?.name || '?'}</span>
-                </div>
-
-                ${canEdit ? `
-                <div style="display:flex; align-items:center; gap:.15rem; flex-shrink:0;">
-                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',-1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">−</button>
-                    <span class="score-picker__value" id="pred-local-${m.id}" style="font-size:1rem;min-width:1rem;">${predLocal}</span>
-                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">+</button>
-                    <span style="color:#8892A4;font-weight:700;font-size:.875rem;margin:0 .1rem;">–</span>
-                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',-1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">−</button>
-                    <span class="score-picker__value" id="pred-away-${m.id}" style="font-size:1rem;min-width:1rem;">${predAway}</span>
-                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">+</button>
-                </div>
-                ` : `
-                <div style="text-align:center; flex-shrink:0; padding:0 .5rem;">
-                    <span style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.0625rem;color:var(--text-muted);">
-                        ${hasPred ? pred.local_goals + ' – ' + pred.away_goals : '? – ?'}
-                    </span>
-                    ${played ? `<div style="font-size:.6rem;color:#8892A4;">Real: ${m.local_goals}–${m.away_goals}</div>` : ''}
-                </div>
-                `}
-
-                <div style="flex:1 1 0; min-width:0; display:flex; align-items:center; gap:.25rem;">
-                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.8125rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">${m.away_team?.name || '?'}</span>
-                    ${awayFlag ? `<img src="${awayFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
-                </div>
-            </div>
 
             ${canEdit ? `
-            <div style="display:flex; justify-content:flex-end; margin-top:.4rem;">
-                <button class="btn btn-ghost btn--sm" onclick="saveSinglePrediction(${m.id})" style="font-size:.7rem; padding:.2rem .6rem;">
-                    💾 Guardar
-                </button>
-            </div>` : ''}
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem;">
+                <div style="display:flex; align-items:center; gap:.3rem; min-width:0; flex:1;">
+                    ${localFlag ? `<img src="${localFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.local_team?.name || '?'}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:.15rem; flex-shrink:0;">
+                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',-1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">−</button>
+                    <span class="score-picker__value" id="pred-local-${m.id}" style="font-size:1rem;min-width:1.1rem;">${predLocal}</span>
+                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'local',1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">+</button>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem;">
+                <div style="display:flex; align-items:center; gap:.3rem; min-width:0; flex:1;">
+                    ${awayFlag ? `<img src="${awayFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.away_team?.name || '?'}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:.15rem; flex-shrink:0;">
+                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',-1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">−</button>
+                    <span class="score-picker__value" id="pred-away-${m.id}" style="font-size:1rem;min-width:1.1rem;">${predAway}</span>
+                    <button class="score-picker__btn" onclick="adjustScore(${m.id},'away',1)" style="width:1.5rem;height:1.5rem;font-size:.75rem;">+</button>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-ghost btn--sm" onclick="saveSinglePrediction(${m.id})" style="font-size:.7rem; padding:.2rem .6rem;">💾 Guardar</button>
+            </div>
+            ` : `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.25rem;">
+                <div style="display:flex; align-items:center; gap:.3rem; min-width:0; flex:1;">
+                    ${localFlag ? `<img src="${localFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.local_team?.name || '?'}</span>
+                </div>
+                <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; color:var(--text-muted); flex-shrink:0; min-width:1.5rem; text-align:center;">${hasPred ? pred.local_goals : '?'}</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.25rem;">
+                <div style="display:flex; align-items:center; gap:.3rem; min-width:0; flex:1;">
+                    ${awayFlag ? `<img src="${awayFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                    <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.away_team?.name || '?'}</span>
+                </div>
+                <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; color:var(--text-muted); flex-shrink:0; min-width:1.5rem; text-align:center;">${hasPred ? pred.away_goals : '?'}</span>
+            </div>
+            ${played ? `<div style="font-size:.6rem; color:#8892A4; text-align:center;">Resultado real: ${m.local_goals} – ${m.away_goals}</div>` : ''}
+            `}
         </div>
     </div>`;
 }
