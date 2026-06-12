@@ -3,7 +3,12 @@ from fastapi.responses import FileResponse
 
 from api.db import create_db_backup, restore_db_backup
 from api.dependencies import require_admin_token
-from api.media import create_user_media_backup, restore_user_media_backup, restore_user_media_backup_from_upload
+from api.media import (
+    create_user_media_backup,
+    get_media_overview,
+    restore_user_media_backup,
+    restore_user_media_backup_from_upload,
+)
 from database.types import JsonDict
 
 
@@ -20,6 +25,11 @@ def backup_media_users(_: str = Depends(require_admin_token)) -> FileResponse:
     )
 
 
+@router.get("/media-files")
+def get_admin_media_files(_: str = Depends(require_admin_token)) -> JsonDict:
+    return get_media_overview()
+
+
 @router.post("/media-users/restore")
 def restore_media_users(
     _: str = Depends(require_admin_token),
@@ -29,11 +39,11 @@ def restore_media_users(
 
 
 @router.post("/media-users/restore/upload")
-def restore_media_users_upload(
+async def restore_media_users_upload(
     _: str = Depends(require_admin_token),
     file: UploadFile = File(...),
 ) -> JsonDict:
-    return restore_user_media_backup_from_upload(file)
+    return await restore_user_media_backup_from_upload(file)
 
 
 @router.post("/db/backup")
@@ -47,8 +57,8 @@ def backup_db(_: str = Depends(require_admin_token)) -> FileResponse:
 
 
 @router.post("/db/restore")
-def restore_db(
+async def restore_db(
     _: str = Depends(require_admin_token),
     file: UploadFile = File(...),
 ) -> JsonDict:
-    return restore_db_backup(file)
+    return await restore_db_backup(file)

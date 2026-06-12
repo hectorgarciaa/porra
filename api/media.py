@@ -153,11 +153,50 @@ def restore_user_media_backup(backup_filename: str | None = None) -> dict[str, o
     }
 
 
-def restore_user_media_backup_from_upload(uploaded_file: UploadFile) -> dict[str, object]:
+def _serialize_media_files(base_dir: Path, public_prefix: str | None = None) -> list[dict[str, object]]:
+    if not base_dir.exists():
+        return []
+
+    files: list[dict[str, object]] = []
+    for file_path in sorted(
+        (path for path in base_dir.rglob("*") if path.is_file()),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    ):
+        relative_path = file_path.relative_to(base_dir).as_posix()
+        item: dict[str, object] = {
+            "name": file_path.name,
+            "relative_path": relative_path,
+            "size_bytes": file_path.stat().st_size,
+            "updated_at": datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc).isoformat(),
+        }
+        if public_prefix is not None:
+            item["url"] = f"{public_prefix}/{relative_path}"
+        files.append(item)
+    return files
+
+
+def get_media_overview() -> dict[str, object]:
+    ensure_media_dirs()
+    return {
+        "users": {
+            "base_path": str(USER_MEDIA_DIR),
+            "public_prefix": "/media/users",
+            "files": _serialize_media_files(USER_MEDIA_DIR, "/media/users"),
+        },
+        "user_backups": {
+            "base_path": str(MEDIA_BACKUP_DIR),
+            "public_prefix": None,
+            "files": _serialize_media_files(MEDIA_BACKUP_DIR),
+        },
+    }
+
+
+async def restore_user_media_backup_from_upload(uploaded_file: UploadFile) -> dict[str, object]:
     ensure_media_dirs()
     resolved_user_media_dir = USER_MEDIA_DIR.resolve()
 
-    content = uploaded_file.read()
+    content = await uploaded_file.read()
     if not content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

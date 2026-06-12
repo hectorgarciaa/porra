@@ -107,6 +107,21 @@
 
         <div class="card card--flat" style="margin-bottom:1rem;">
             <div class="card-body--sm">
+                <div style="margin-bottom:.75rem; display:flex; align-items:center; justify-content:space-between; gap:.75rem;">
+                    <div>
+                        <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Explorador de media</div>
+                        <div style="font-size:.75rem; color:#8892A4;">Consulta fotos subidas y backups guardados en disco.</div>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="loadMediaExplorer()">↻ Refrescar</button>
+                </div>
+                <div id="media-explorer">
+                    <div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Cargando archivos...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card--flat" style="margin-bottom:1rem;">
+            <div class="card-body--sm">
                 <div style="margin-bottom:.75rem;">
                     <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">🗄️ Backup de base de datos</div>
                     <div style="font-size:.75rem; color:#8892A4;">Descarga toda la base de datos o restaura desde un archivo.</div>
@@ -326,6 +341,7 @@ function showPanel() {
     const user = getUser();
     const badge = document.getElementById('admin-user-badge');
     if (badge && user.name) badge.textContent = '👤 ' + user.name;
+    loadMediaExplorer();
     loadAdminMatches();
     initDebugTables();
 }
@@ -337,6 +353,73 @@ function getDebugToken() {
         return null;
     }
     return token;
+}
+
+function formatFileSize(sizeBytes) {
+    const size = Number(sizeBytes || 0);
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderMediaFilesSection(title, files, isPublic) {
+    if (!files.length) {
+        return `
+            <div style="margin-bottom:1rem;">
+                <div style="font-weight:700; font-size:.8125rem; margin-bottom:.35rem;">${title}</div>
+                <div style="font-size:.75rem; color:#8892A4;">Sin archivos.</div>
+            </div>
+        `;
+    }
+
+    return `
+        <div style="margin-bottom:1rem;">
+            <div style="font-weight:700; font-size:.8125rem; margin-bottom:.35rem;">${title}</div>
+            <div style="display:flex; flex-direction:column; gap:.4rem;">
+                ${files.map(file => `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:.75rem; background:rgba(255,255,255,.6); border:1px solid var(--border); border-radius:.75rem; padding:.55rem .65rem;">
+                        <div style="min-width:0; flex:1;">
+                            <div style="font-size:.78rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${file.relative_path}</div>
+                            <div style="font-size:.68rem; color:#8892A4;">${formatFileSize(file.size_bytes)}</div>
+                        </div>
+                        ${isPublic && file.url ? `<a href="${file.url}" target="_blank" class="btn btn-ghost btn--sm" style="flex-shrink:0;">Abrir</a>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+async function loadMediaExplorer() {
+    const container = document.getElementById('media-explorer');
+    if (!container) return;
+
+    const adminToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '';
+    if (!adminToken) {
+        container.innerHTML = '<div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Sesion admin no disponible.</div>';
+        return;
+    }
+
+    container.innerHTML = '<div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Cargando archivos...</div>';
+
+    const res = await fetch('/admin/media-files', {
+        method: 'GET',
+        headers: { 'X-Admin-Token': adminToken }
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        container.innerHTML = `<div style="font-size:.75rem; color:var(--coral); text-align:center; padding:1rem;">${err.detail || 'No se pudo cargar media.'}</div>`;
+        return;
+    }
+
+    const data = await res.json();
+    const userFiles = data.users?.files || [];
+    const backupFiles = data.user_backups?.files || [];
+
+    container.innerHTML =
+        renderMediaFilesSection('media/users', userFiles, true) +
+        renderMediaFilesSection('media/backups/users', backupFiles, false);
 }
 
 /* ── DB CRUD ──────────────────────────────────────────────────── */

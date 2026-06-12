@@ -69,10 +69,10 @@ def create_db_backup() -> Path:
     return backup_path
 
 
-def restore_db_backup(uploaded_file: UploadFile) -> JsonDict:
+async def restore_db_backup(uploaded_file: UploadFile) -> JsonDict:
     ensure_db_backup_dirs()
 
-    content = uploaded_file.read()
+    content = await uploaded_file.read()
     if not content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

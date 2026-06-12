@@ -214,10 +214,33 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
     backup_response = client.post("/admin/media-users/backup", headers=admin_headers)
     assert backup_response.status_code == 200
     assert backup_response.headers["content-type"] == "application/zip"
+    backup_zip_bytes = backup_response.content
+
+    media_overview_response = client.get("/admin/media-files", headers=admin_headers)
+    assert media_overview_response.status_code == 200
+    media_overview = media_overview_response.json()
+    assert "users" in media_overview
+    assert "user_backups" in media_overview
+    assert len(media_overview["users"]["files"]) >= 1
+    assert any(file_item["relative_path"].endswith(".png") for file_item in media_overview["users"]["files"])
+    assert any(file_item["name"].endswith(".zip") for file_item in media_overview["user_backups"]["files"])
 
     media_files = [path for path in media.USER_MEDIA_DIR.rglob("*") if path.is_file()]
     assert media_files
     for path in media_files:
+        path.unlink()
+
+    upload_restore_response = client.post(
+        "/admin/media-users/restore/upload",
+        headers=admin_headers,
+        files={"file": ("users_backup_test.zip", backup_zip_bytes, "application/zip")},
+    )
+    assert upload_restore_response.status_code == 200
+    assert upload_restore_response.json()["restored_files"] >= 1
+
+    restored_from_upload_files = [path for path in media.USER_MEDIA_DIR.rglob("*") if path.is_file()]
+    assert restored_from_upload_files
+    for path in restored_from_upload_files:
         path.unlink()
 
     restore_response = client.post("/admin/media-users/restore", headers=admin_headers)
@@ -240,3 +263,5 @@ def test_frontend_contracts(client) -> None:
     assert "/auth/admin/unlock" in admin_html
     assert "/admin/media-users/backup" in admin_html
     assert "/admin/media-users/restore" in admin_html
+    assert "/admin/media-files" in admin_html
+    assert "media-explorer" in admin_html
