@@ -825,6 +825,7 @@ let selected = { scorers: [], assists: [], yellows: [], reds: [] };
 let scores = { local: 0, away: 0, localPen: 0, awayPen: 0 };
 let teamDetailsCache = {};
 let teamDetailsPromises = {};
+const DUPLICATE_EVENT_CATEGORIES = new Set(['scorers', 'assists', 'yellows']);
 
 function getTeamDetailPromise(teamId) {
     if (teamDetailsCache[teamId]) return Promise.resolve(teamDetailsCache[teamId]);
@@ -852,6 +853,8 @@ async function loadAdminMatches() {
         if (m.away_team?.id) teamIds.add(m.away_team.id);
         return {
             ...m,
+            local_team_id: m.local_team?.id || null,
+            away_team_id: m.away_team?.id || null,
             group_letter: m.group?.letter || null,
             group_id: m.group?.id || null,
         };
@@ -942,11 +945,10 @@ function renderAdminMatches(matches) {
 }
 
 /* ── Modal ───────────────────────────────────────────────────── */
-function openModal(matchId) {
+async function openModal(matchId) {
     const m = adminMatches.find(x => x.id === matchId);
     if (!m) return;
     currentMatchId = matchId;
-    selected = { scorers: [], assists: [], yellows: [], reds: [] };
     scores = {
         local: m.local_goals ?? 0,
         away: m.away_goals ?? 0,
@@ -971,10 +973,17 @@ function openModal(matchId) {
     togglePenalties();
     document.getElementById('result-error').classList.add('hidden');
 
+    const matchDetailRes = await api(`/matches/${matchId}`);
+    const matchDetail = matchDetailRes && matchDetailRes.ok ? await matchDetailRes.json() : null;
+
     // Populate player dropdowns
-    const localPlayers = matchPlayers[m.local_team_id] || [];
-    const awayPlayers = matchPlayers[m.away_team_id] || [];
+    const localTeamId = m.local_team_id ?? m.local_team?.id ?? matchDetail?.local_team?.id ?? null;
+    const awayTeamId = m.away_team_id ?? m.away_team?.id ?? matchDetail?.away_team?.id ?? null;
+    const localPlayers = localTeamId ? (matchPlayers[localTeamId] || []) : [];
+    const awayPlayers = awayTeamId ? (matchPlayers[awayTeamId] || []) : [];
     const allPlayers = [...localPlayers, ...awayPlayers];
+    const playersById = Object.fromEntries(allPlayers.map(p => [p.id, p]));
+    matchPlayers.__byId = playersById;
 
     const pickerIds = ['scorer-picker','assist-picker','yellow-picker','red-picker'];
     for (const pid of pickerIds) {
@@ -983,11 +992,13 @@ function openModal(matchId) {
             allPlayers.map(p => `<option value="${p.id}">${p.name} ${p.surname} (${p.number})</option>`).join('');
     }
 
-    // Clear tag containers
-    ['scorers','assists','yellows','reds'].forEach(k => {
-        document.getElementById(k + '-container').innerHTML = '';
-        selected[k] = [];
-    });
+    selected = {
+        scorers: (matchDetail?.scorers || []).map(player => Number(player.id)),
+        assists: (matchDetail?.assists || []).map(player => Number(player.id)),
+        yellows: (matchDetail?.yellow_cards || []).map(player => Number(player.id)),
+        reds: (matchDetail?.red_cards || []).map(player => Number(player.id)),
+    };
+    renderAllSelectedCategories(playersById);
 
     // Show modal
     const modal = document.getElementById('result-modal');
@@ -1024,26 +1035,51 @@ function togglePenalties() {
 }
 
 /* ── Player tags ────────────────────────────────────────────── */
+function formatPlayerLabel(player) {
+    const name = [player?.name || '', player?.surname || ''].join(' ').trim();
+    const dorsal = player?.number !== null && player?.number !== undefined ? ` (${player.number})` : '';
+    return `${name || 'Jugador'}${dorsal}`;
+}
+
+function renderSelectedCategory(category, playersById) {
+    const container = document.getElementById(category + '-container');
+    container.innerHTML = '';
+
+    selected[category].forEach((id, index) => {
+        const player = playersById[id];
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem;background:var(--blue-light);border:1px solid var(--blue-mid);color:var(--blue);border-radius:9999px;padding:.2rem .625rem;font-size:.75rem;font-weight:600;';
+        tag.innerHTML = `${formatPlayerLabel(player)} <button type="button" onclick="removePlayer('${category}', ${index})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
+        container.appendChild(tag);
+    });
+}
+
+function renderAllSelectedCategories(playersById) {
+    ['scorers', 'assists', 'yellows', 'reds'].forEach(category => {
+        renderSelectedCategory(category, playersById);
+    });
+}
+
 function addPlayer(category, select) {
     const val = select.value;
     if (!val) return;
-    const text = select.options[select.selectedIndex].text;
-    const id = parseInt(val);
-    if (selected[category].includes(id)) { select.value = ''; return; }
+    const id = parseInt(val, 10);
+    if (!DUPLICATE_EVENT_CATEGORIES.has(category) && selected[category].includes(id)) {
+        select.value = '';
+        return;
+    }
     selected[category].push(id);
 
-    const containerId = category + '-container';
-    const container = document.getElementById(containerId);
-    const tag = document.createElement('span');
-    tag.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem;background:var(--blue-light);border:1px solid var(--blue-mid);color:var(--blue);border-radius:9999px;padding:.2rem .625rem;font-size:.75rem;font-weight:600;';
+    renderSelectedCategory(category, matchPlayers.__byId || {});
+    select.value = '';
+    return;
     tag.innerHTML = `${text} <button type="button" onclick="removePlayer('${category}', ${id}, this.parentElement)" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
-    container.appendChild(tag);
     select.value = '';
 }
 
-function removePlayer(category, id, tagEl) {
-    selected[category] = selected[category].filter(x => x !== id);
-    tagEl.remove();
+function removePlayer(category, index) {
+    selected[category].splice(index, 1);
+    renderSelectedCategory(category, matchPlayers.__byId || {});
 }
 
 /* ── Submit result ──────────────────────────────────────────── */
@@ -1061,9 +1097,9 @@ document.getElementById('result-form').addEventListener('submit', async (e) => {
     const m = adminMatches.find(x => x.id === currentMatchId);
     let winnerId = null;
     if (hasPens) {
-        winnerId = scores.localPen > scores.awayPen ? m?.local_team_id : m?.away_team_id;
+        winnerId = scores.localPen > scores.awayPen ? (m?.local_team_id ?? m?.local_team?.id) : (m?.away_team_id ?? m?.away_team?.id);
     } else if (scores.local !== scores.away) {
-        winnerId = scores.local > scores.away ? m?.local_team_id : m?.away_team_id;
+        winnerId = scores.local > scores.away ? (m?.local_team_id ?? m?.local_team?.id) : (m?.away_team_id ?? m?.away_team?.id);
     }
 
     const body = {
@@ -1098,8 +1134,17 @@ document.getElementById('result-form').addEventListener('submit', async (e) => {
     // Update local cache
     const idx = adminMatches.findIndex(x => x.id === currentMatchId);
     if (idx >= 0) {
-        adminMatches[idx].local_goals = scores.local;
-        adminMatches[idx].away_goals = scores.away;
+        const updatedMatch = (await res.json()).match;
+        adminMatches[idx] = {
+            ...adminMatches[idx],
+            local_goals: updatedMatch.local_goals,
+            away_goals: updatedMatch.away_goals,
+            winner_id: updatedMatch.winner_id,
+            has_extra_time: !!updatedMatch.has_extra_time,
+            has_penalties: !!updatedMatch.has_penalties,
+            local_penalties: updatedMatch.local_penalties,
+            away_penalties: updatedMatch.away_penalties,
+        };
     }
 
     showToast('✅ Resultado guardado y puntuaciones actualizadas', 'success', 4000);

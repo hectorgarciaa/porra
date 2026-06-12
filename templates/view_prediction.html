@@ -84,6 +84,8 @@
                 <button class="chip" onclick="filterPredMatches(this,'wrong')">❌ Fallados</button>
             </div>
 
+            <div id="predicted-groups-section" style="margin-bottom:1.25rem;"></div>
+
             <div id="pred-matches-list" class="space-y-2">
                 <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
             </div>
@@ -109,6 +111,7 @@ let teamsCache = {};
 let playersCache = {};
 let allPredMatches = [];
 let currentPredFilter = 'all';
+let predictedGroups = [];
 
 /* ── Init ─────────────────────────────────────────────────── */
 async function init() {
@@ -141,6 +144,8 @@ async function init() {
     document.getElementById('has-prediction').classList.remove('hidden');
 
     updateSummary(pred.prediction);
+    predictedGroups = pred.predicted_groups || [];
+    renderPredictedGroups(predictedGroups);
     loadMatchesForPrediction(pred.match_predictions || []);
     renderGlobalForm();
 }
@@ -222,6 +227,70 @@ function renderPredMatches(matches, filter) {
         html += renderPredMatchCard(m);
     }
     el.innerHTML = html;
+}
+
+function renderPredictedGroups(groups) {
+    const el = document.getElementById('predicted-groups-section');
+    if (!el) return;
+    if (!groups.length) {
+        el.innerHTML = '';
+        return;
+    }
+
+    el.innerHTML = `
+    <div class="card card--flat">
+        <div class="card-body--sm">
+            <div style="margin-bottom:.875rem;">
+                <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Asi le quedarían los grupos</div>
+                <div style="font-size:.75rem; color:#8892A4;">Clasificación calculada con sus pronósticos de la fase de grupos.</div>
+            </div>
+            <div style="display:grid; gap:.75rem;">
+                ${groups.map(renderPredictedGroupCard).join('')}
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderPredictedGroupCard(group) {
+    const rows = (group.standings || []).map(row => `
+        <tr>
+            <td style="padding:.35rem .25rem; font-weight:800; color:${row.position <= 2 ? 'var(--green)' : '#8892A4'};">${row.position}</td>
+            <td style="padding:.35rem .25rem; font-weight:700;">${row.team?.name || '?'}</td>
+            <td style="padding:.35rem .25rem; text-align:center;">${row.points}</td>
+            <td style="padding:.35rem .25rem; text-align:center;">${row.played}</td>
+            <td style="padding:.35rem .25rem; text-align:center;">${row.goals_for}</td>
+            <td style="padding:.35rem .25rem; text-align:center;">${row.goals_against}</td>
+            <td style="padding:.35rem .25rem; text-align:center;">${row.goal_difference}</td>
+        </tr>
+    `).join('');
+
+    const status = group.is_complete
+        ? '<span class="badge badge--green">Completo</span>'
+        : `<span class="badge badge--gold">${group.predicted_match_count}/${group.total_group_match_count} partidos</span>`;
+
+    return `
+    <div style="background:rgba(255,255,255,.65); border:1px solid var(--border); border-radius:1rem; padding:.75rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.5rem;">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.9rem;">Grupo ${group.letter}</div>
+            ${status}
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:.72rem;">
+                <thead>
+                    <tr style="color:#8892A4; border-bottom:1px solid var(--border);">
+                        <th style="padding:.3rem .25rem; text-align:left;">#</th>
+                        <th style="padding:.3rem .25rem; text-align:left;">Equipo</th>
+                        <th style="padding:.3rem .25rem; text-align:center;">Pts</th>
+                        <th style="padding:.3rem .25rem; text-align:center;">PJ</th>
+                        <th style="padding:.3rem .25rem; text-align:center;">GF</th>
+                        <th style="padding:.3rem .25rem; text-align:center;">GC</th>
+                        <th style="padding:.3rem .25rem; text-align:center;">DG</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
 }
 
 function renderPredMatchCard(m) {

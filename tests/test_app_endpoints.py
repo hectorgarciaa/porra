@@ -195,6 +195,12 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
 
     prediction_by_id = client.get(f"/predictions/{prediction_id}", headers=headers)
     assert prediction_by_id.status_code == 200
+    prediction_payload = prediction_by_id.json()
+    assert "predicted_groups" in prediction_payload
+    assert len(prediction_payload["predicted_groups"]) == 12
+    group_a = next(group for group in prediction_payload["predicted_groups"] if group["letter"] == "A")
+    assert "standings" in group_a
+    assert len(group_a["standings"]) == 4
 
     avatar_response = client.post(
         "/users/me/avatar",
@@ -265,3 +271,8 @@ def test_frontend_contracts(client) -> None:
     assert "/admin/media-users/restore" in admin_html
     assert "/admin/media-files" in admin_html
     assert "media-explorer" in admin_html
+    assert "DUPLICATE_EVENT_CATEGORIES" in admin_html
+    assert "renderAllSelectedCategories" in admin_html
+    assert "/matches/${matchId}" in admin_html
+    assert "predicted_groups" in Path("database/predictions/prediction_service.py").read_text(encoding="utf-8")
+    assert "predicted-groups-section" in Path("templates/view_prediction.html").read_text(encoding="utf-8")
