@@ -61,7 +61,7 @@ function logout() {
 /* ── Auth check ────────────────────────────────────────────── */
 function checkAuth() {
     const token = getToken();
-    const publicPaths = ['/', '/login', '/register', '/admin'];
+    const publicPaths = ['/', '/login', '/register', '/admin', '/rules'];
     const isPublic = publicPaths.includes(location.pathname);
     if (!token && !isPublic) {
         window.location.href = '/login';
