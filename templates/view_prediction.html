@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Ver Porra — La Porra del Bar{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <!-- Page header -->
+    <div style="margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between;">
+        <div>
+            <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.5rem; color:#1A1A2E;" id="view-title">👀 Viendo porra</h1>
+            <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;" id="view-subtitle"></p>
+        </div>
+        <a href="/classification" class="btn btn-ghost btn--sm">⬅️ Volver</a>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading">
+        <div class="loading-spinner"><div class="spinner"></div> Cargando porra...</div>
+    </div>
+
+    <!-- Not found -->
+    <div id="not-found" class="hidden">
+        <div class="card">
+            <div class="empty-state">
+                <div class="empty-state__icon">😕</div>
+                <div class="empty-state__title">Este jugador aún no ha hecho su porra</div>
+                <div class="empty-state__text">Cuando la cree, podrás cotillearla aquí</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Has prediction -->
+    <div id="has-prediction" class="hidden">
+
+        <!-- Summary cards -->
+        <div id="summary-section" style="margin-bottom:1.25rem;">
+            <div class="card card--flat" style="margin-bottom:0.75rem; background: linear-gradient(135deg, var(--blue-light), var(--green-light)); border-color: var(--blue-mid);">
+                <div class="card-body">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                        <div>
+                            <div style="font-family:'Outfit',sans-serif; font-weight:700; color:#555E72; font-size:0.8125rem;">La porra de <span id="sum-username"></span> 🍀</div>
+                            <div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:2.25rem; color:var(--blue);" id="sum-points">0</div>
+                            <div style="font-size:0.75rem; color:#8892A4;">puntos</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1.5rem; color:var(--green);" id="sum-pct">0%</div>
+                            <div style="font-size:0.75rem; color:#8892A4;">completado</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar" style="margin-bottom:0.5rem;">
+                        <div class="progress-bar__fill" id="sum-progress" style="width:0%;"></div>
+                    </div>
+                    <div class="stat-row" style="margin-top:0.75rem;">
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-exact">0</div>
+                            <div class="stat-card__label">Resultados exactos</div>
+                        </div>
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-winners">0</div>
+                            <div class="stat-card__label">Ganadores</div>
+                        </div>
+                        <div class="stat-card" style="background:rgba(255,255,255,.7);">
+                            <div class="stat-card__value" id="sum-pending">0</div>
+                            <div class="stat-card__label">Pendientes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar" style="margin-bottom:1.25rem;">
+            <button class="tab-btn active" data-tab="matches-pred">Partidos</button>
+            <button class="tab-btn" data-tab="global-view">Predicción Global</button>
+        </div>
+
+        <!-- ── TAB PARTIDOS ───────────────────────────────── -->
+        <div id="tab-matches-pred" class="tab-content active">
+            <div class="chips-row" style="margin-bottom:1rem;">
+                <button class="chip active" onclick="filterPredMatches(this,'all')">Todos</button>
+                <button class="chip" onclick="filterPredMatches(this,'pending')">Pendientes</button>
+                <button class="chip" onclick="filterPredMatches(this,'played')">Jugados</button>
+                <button class="chip" onclick="filterPredMatches(this,'correct')">✅ Acertados</button>
+                <button class="chip" onclick="filterPredMatches(this,'wrong')">❌ Fallados</button>
+            </div>
+
+            <div id="pred-matches-list" class="space-y-2">
+                <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
+            </div>
+        </div>
+
+        <!-- ── TAB GLOBAL ─────────────────────────────────── -->
+        <div id="tab-global-view" class="tab-content">
+            <div id="global-form-container">
+                <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let predictionId = null;
+let globalData = null;
+let groupsCache = null;
+let teamsCache = {};
+let playersCache = {};
+let allPredMatches = [];
+let currentPredFilter = 'all';
+
+/* ── Init ─────────────────────────────────────────────────── */
+async function init() {
+    const pathParts = window.location.pathname.split('/');
+    const idFromPath = parseInt(pathParts[pathParts.length - 1]);
+    if (!idFromPath || isNaN(idFromPath)) {
+        document.getElementById('loading').innerHTML = '<div class="empty-state"><div class="empty-state__icon">❌</div><div class="empty-state__title">ID de porra inválido</div></div>';
+        return;
+    }
+    predictionId = idFromPath;
+
+    const res = await api('/predictions/' + predictionId);
+    if (!res || res.status === 404) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('not-found').classList.remove('hidden');
+        return;
+    }
+    if (!res.ok) {
+        document.getElementById('loading').innerHTML = '<div class="empty-state"><div class="empty-state__icon">❌</div><div class="empty-state__title">Error al cargar la porra</div></div>';
+        return;
+    }
+
+    const pred = await res.json();
+    globalData = pred.global_prediction;
+    const userName = pred.user?.name || '?';
+    document.getElementById('view-title').textContent = '👀 Porra de ' + userName;
+    document.getElementById('view-subtitle').textContent = 'Vista solo lectura · No puedes editar';
+    document.getElementById('sum-username').textContent = userName;
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('has-prediction').classList.remove('hidden');
+
+    updateSummary(pred.prediction);
+    loadMatchesForPrediction(pred.match_predictions || []);
+    renderGlobalForm();
+}
+
+/* ── Summary ──────────────────────────────────────────────── */
+function updateSummary(prediction) {
+    document.getElementById('sum-points').textContent = prediction.points || 0;
+}
+
+function updateSummaryFromMatches(matches) {
+    const played = matches.filter(m => m.local_goals !== null);
+    const pending = matches.filter(m => m.local_goals === null);
+    const total = matches.length;
+    const withPred = matches.filter(m => m.my_prediction !== null).length;
+    const pct = total > 0 ? Math.round((withPred / total) * 100) : 0;
+    const exact = played.filter(m => m.my_prediction && m.my_prediction.local_goals === m.local_goals && m.my_prediction.away_goals === m.away_goals).length;
+    const winners = played.filter(m => {
+        if (!m.my_prediction) return false;
+        const realWinner = m.local_goals > m.away_goals ? m.local_team_id : (m.away_goals > m.local_goals ? m.away_team_id : null);
+        const predWinner = m.my_prediction.local_goals > m.my_prediction.away_goals ? m.local_team_id : (m.my_prediction.away_goals > m.my_prediction.local_goals ? m.away_team_id : null);
+        return realWinner !== null && realWinner === predWinner;
+    }).length;
+    document.getElementById('sum-pct').textContent = pct + '%';
+    document.getElementById('sum-progress').style.width = pct + '%';
+    document.getElementById('sum-exact').textContent = exact;
+    document.getElementById('sum-winners').textContent = winners;
+    document.getElementById('sum-pending').textContent = pending.filter(m => !m.my_prediction).length;
+}
+
+/* ── Load matches ─────────────────────────────────────────── */
+async function loadMatchesForPrediction(matchPredictions) {
+    const res = await api('/matches');
+    if (!res || !res.ok) return;
+    allPredMatches = await res.json();
+    allPredMatches = allPredMatches.map(m => ({
+        ...m,
+        group_letter: m.group?.letter || null,
+        my_prediction: null,
+    }));
+    allPredMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+
+    for (const mp of matchPredictions) {
+        const m = allPredMatches.find(x => x.id === mp.match_id);
+        if (m) m.my_prediction = mp;
+    }
+
+    updateSummaryFromMatches(allPredMatches);
+    renderPredMatches(allPredMatches, 'all');
+}
+
+function filterPredMatches(btn, filter) {
+    document.querySelectorAll('#tab-matches-pred .chips-row .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentPredFilter = filter;
+    renderPredMatches(allPredMatches, filter);
+}
+
+function renderPredMatches(matches, filter) {
+    const el = document.getElementById('pred-matches-list');
+    let filtered = matches;
+    if (filter === 'pending') filtered = matches.filter(m => m.local_goals === null);
+    if (filter === 'played')  filtered = matches.filter(m => m.local_goals !== null);
+    if (filter === 'correct') filtered = matches.filter(m => m.local_goals !== null && m.my_prediction && m.my_prediction.local_goals === m.local_goals && m.my_prediction.away_goals === m.away_goals);
+    if (filter === 'wrong')   filtered = matches.filter(m => m.local_goals !== null && (!m.my_prediction || m.my_prediction.local_goals !== m.local_goals || m.my_prediction.away_goals !== m.away_goals));
+
+    if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">Sin partidos en esta categoría</div></div>';
+        return;
+    }
+
+    let html = '';
+    let currentDay = '';
+    for (const m of filtered) {
+        const day = new Date(m.kickoff_at).toLocaleDateString('es-ES', {weekday:'long',day:'numeric',month:'long'});
+        if (day !== currentDay) {
+            currentDay = day;
+            html += `<div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:0.8125rem; color:#8892A4; padding:0.5rem 0 0.25rem;">${day}</div>`;
+        }
+        html += renderPredMatchCard(m);
+    }
+    el.innerHTML = html;
+}
+
+function renderPredMatchCard(m) {
+    const played = m.local_goals !== null;
+    const hasPred = m.my_prediction !== null;
+    const pred = m.my_prediction;
+
+    let statusBadge = '';
+    if (played && hasPred) {
+        const exact = pred.local_goals === m.local_goals && pred.away_goals === m.away_goals;
+        statusBadge = exact ? '<span class="badge badge--green">✅ Pleno</span>' : '<span class="badge badge--coral">❌ Fallado</span>';
+    } else if (played && !hasPred) {
+        statusBadge = '<span class="badge badge--coral">❌ Sin pronóstico</span>';
+    } else if (hasPred) {
+        statusBadge = '<span class="badge badge--blue">📝 Predicho</span>';
+    } else {
+        statusBadge = '<span class="badge badge--gold">⏳ Pendiente</span>';
+    }
+
+    const predLocal = hasPred ? pred.local_goals : '?';
+    const predAway = hasPred ? pred.away_goals : '?';
+
+    return `
+    <div class="card card--flat" style="margin-bottom:.5rem;">
+        <div class="card-body--sm">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem;">
+                <span class="badge badge--gray" style="font-size:.6rem;">G${m.group_letter || '?'}</span>
+                ${statusBadge}
+            </div>
+            <div style="display:flex; align-items:center; gap:.5rem; justify-content:space-between;">
+                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; flex:1; text-align:right;">${m.local_team?.name || '?'}</span>
+
+                <div style="text-align:center; min-width:5rem; flex-shrink:0;">
+                    <div style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.25rem;color:var(--text-muted);">
+                        ${predLocal} – ${predAway}
+                    </div>
+                    ${played ? `<div style="font-size:.65rem;color:#8892A4; margin-top:.15rem;">Real: <span style="font-weight:700;">${m.local_goals}–${m.away_goals}</span></div>` : ''}
+                </div>
+
+                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; flex:1; text-align:left;">${m.away_team?.name || '?'}</span>
+            </div>
+
+            ${hasPred && pred.winner_team ? `<div style="font-size:.7rem; color:#8892A4; margin-top:.375rem; text-align:center;">🏆 Ganador pronosticado: ${pred.winner_team?.name || '?'}</div>` : ''}
+            ${hasPred && pred.has_extra_time ? '<div style="font-size:.65rem; color:var(--blue); margin-top:.25rem; text-align:center;">⏱️ Con prórroga</div>' : ''}
+            ${hasPred && pred.has_penalties ? '<div style="font-size:.65rem; color:var(--coral); margin-top:.25rem; text-align:center;">🎯 Con penaltis</div>' : ''}
+        </div>
+    </div>`;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('#has-prediction .tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + btn.dataset.tab));
+    });
+});
+
+/* ── Global form (read-only) ──────────────────────────────── */
+async function loadTeamsForGlobal() {
+    if (!groupsCache) {
+        const res = await api('/groups');
+        if (!res || !res.ok) return;
+        groupsCache = await res.json();
+    }
+    for (const g of groupsCache) {
+        for (const t of (g.standings || [])) {
+            teamsCache[t.team.id] = t.team;
+        }
+    }
+
+    const playersRes = await api('/players');
+    if (!playersRes || !playersRes.ok) return;
+    const players = await playersRes.json();
+    for (const p of players) {
+        playersCache[p.id] = p;
+    }
+}
+
+function renderGlobalForm() {
+    const el = document.getElementById('global-form-container');
+
+    el.innerHTML = `<div class="card card--flat"><div class="card-body">
+        <div class="space-y-3" id="global-readonly">
+            <div class="loading-spinner"><div class="spinner"></div> Cargando datos...</div>
+        </div>
+    </div></div>`;
+
+    loadTeamsForGlobal().then(() => populateGlobalReadonly());
+}
+
+function populateGlobalReadonly() {
+    const g = globalData;
+    const el = document.getElementById('global-readonly');
+
+    const fields = [
+        { label:'🏆 Campeón',           value: g?.winner_team_id,            type:'team' },
+        { label:'🥈 Subcampeón',        value: g?.runner_up_team_id,          type:'team' },
+        { label:'🥉 3er puesto',        value: g?.third_place_team_id,        type:'team' },
+        { label:'4º puesto',            value: g?.fourth_place_team_id,       type:'team' },
+        { label:'⭐ Mejor jugador',     value: g?.best_player_player_id,     type:'player' },
+        { label:'⚽ Máximo goleador',   value: g?.max_scorer_player_id,      type:'player' },
+        { label:'👟 Máximo asistente',  value: g?.max_assister_player_id,    type:'player' },
+        { label:'🟡 Más amarillas',     value: g?.max_yellow_cards_player_id,type:'player' },
+        { label:'🟥 Más rojas',         value: g?.max_red_cards_player_id,   type:'player' },
+    ];
+
+    el.innerHTML = fields.map(f => {
+        let display = '<span style="color:#8892A4; font-style:italic;">Sin pronóstico</span>';
+        if (f.value) {
+            if (f.type === 'team') {
+                const team = teamsCache[f.value];
+                display = team ? team.name : 'Equipo #' + f.value;
+            } else {
+                const player = playersCache[f.value];
+                display = player ? `${player.name} ${player.surname} (#${player.number})` : 'Jugador #' + f.value;
+            }
+        }
+        return `<div class="form-group">
+            <label class="form-label">${f.label}</label>
+            <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.9375rem; padding:.5rem 0; color:#1A1A2E;">${display}</div>
+        </div>`;
+    }).join('');
+}
+
+init();
+</script>
+{% endblock %}

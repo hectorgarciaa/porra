@@ -15,7 +15,8 @@ def getLeaderboard() -> JsonList:
                 users.id,
                 users.name,
                 users.img,
-                COALESCE(predictions.points, 0) AS points
+                COALESCE(predictions.points, 0) AS points,
+                predictions.id AS prediction_id
             FROM users
             LEFT JOIN predictions ON predictions.player_id = users.id
             ORDER BY points DESC, lower(users.name) ASC, users.id ASC
@@ -28,6 +29,7 @@ def getLeaderboard() -> JsonList:
             "name": row["name"],
             "img": row["img"],
             "points": int(row["points"]),
+            "prediction_id": row["prediction_id"],
         }
         for row in rows
     ]

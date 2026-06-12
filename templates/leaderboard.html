@@ -125,7 +125,10 @@ function renderRanking(data, filter) {
                     ${u.exact_winners !== undefined ? ` · ✅ ${u.exact_winners} ganadores` : ''}
                 </div>
             </div>
-            <span class="rank-points">${u.points}</span>
+            <div style="display:flex; align-items:center; gap:.5rem;">
+                ${u.prediction_id ? `<a href="/prediction/${u.prediction_id}" class="btn btn-ghost btn--sm" title="Ver porra" style="text-decoration:none;">👀</a>` : ''}
+                <span class="rank-points">${u.points}</span>
+            </div>
         </div>`;
     }).join('');
 }

@@ -86,3 +86,8 @@ async def mundial(request: Request) -> HTMLResponse:
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request) -> HTMLResponse:
     return _render("admin.html", request)
+
+
+@router.get("/prediction/{prediction_id}", response_class=HTMLResponse)
+async def view_prediction(request: Request) -> HTMLResponse:
+    return _render("view_prediction.html", request)

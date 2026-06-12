@@ -44,13 +44,6 @@ def get_prediction_by_id(
     prediction_id: int,
     current_user: RowDict = Depends(get_current_user),
 ) -> JsonDict:
-    user_id = int(current_user["id"])
-    prediction = getPredictionByPlayerId(user_id)
-    if int(prediction["id"]) != prediction_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para ver esta prediccion.",
-        )
     return getFullPredictionById(prediction_id)
 
 
