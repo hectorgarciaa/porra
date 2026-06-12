@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from api.dependencies import get_current_user
 from api.media import MAX_IMAGE_SIZE_BYTES, USER_MEDIA_DIR, ensure_media_dirs
@@ -33,13 +33,22 @@ async def post_image(
 
     content_type = (image.content_type or "").lower().strip()
     if content_type not in ("image/jpeg", "image/png", "image/webp"):
-        return {"error": "La imagen debe ser JPG, PNG o WEBP."}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La imagen debe ser JPG, PNG o WEBP.",
+        )
 
     content = await image.read()
     if not content:
-        return {"error": "La imagen no puede estar vacia."}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La imagen no puede estar vacia.",
+        )
     if len(content) > MAX_IMAGE_SIZE_BYTES:
-        return {"error": "La imagen supera el maximo de 5 MB."}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La imagen supera el maximo de 5 MB.",
+        )
 
     ext = ".jpg" if "jpeg" in content_type else ".png" if "png" in content_type else ".webp"
     filename = f"chat_{token_hex(8)}{ext}"

@@ -186,8 +186,8 @@ function updateSummaryFromMatches(matches) {
     const exact = played.filter(m => m.my_prediction && m.my_prediction.local_goals === m.local_goals && m.my_prediction.away_goals === m.away_goals).length;
     const winners = played.filter(m => {
         if (!m.my_prediction) return false;
-        const realWinner = m.local_goals > m.away_goals ? m.local_team_id : (m.away_goals > m.local_goals ? m.away_team_id : null);
-        const predWinner = m.my_prediction.local_goals > m.my_prediction.away_goals ? m.local_team_id : (m.my_prediction.away_goals > m.my_prediction.local_goals ? m.away_team_id : null);
+        const realWinner = m.local_goals > m.away_goals ? m.local_team?.id : (m.away_goals > m.local_goals ? m.away_team?.id : null);
+        const predWinner = m.my_prediction.local_goals > m.my_prediction.away_goals ? m.local_team?.id : (m.my_prediction.away_goals > m.my_prediction.local_goals ? m.away_team?.id : null);
         return realWinner !== null && realWinner === predWinner;
     }).length;
     document.getElementById('sum-pct').textContent = pct + '%';

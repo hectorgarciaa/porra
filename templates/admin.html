@@ -67,23 +67,21 @@
         <div class="card card--flat" style="margin-bottom:1rem;">
             <div class="card-body--sm">
                 <div style="margin-bottom:.75rem;">
-                    <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Debug de base de datos</div>
-                    <div style="font-size:.75rem; color:#8892A4;">Abre los endpoints de inspeccion de Render desde aqui.</div>
+                    <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">🗄️ Gestor de base de datos</div>
+                    <div style="font-size:.75rem; color:#8892A4;">Explora, añade, edita y elimina registros de cualquier tabla.</div>
                 </div>
-                <div class="input-wrapper" style="margin-bottom:.75rem;">
-                    <span class="input-icon">🔐</span>
-                    <input class="form-input form-input--icon-left" type="text" id="debug-token"
-                           placeholder="DEBUG_DB_TOKEN" autocomplete="off">
+                <div style="display:flex; gap:.5rem; margin-bottom:.75rem; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <select id="debug-table-select" class="form-input" style="font-size:.8125rem;" onchange="loadDebugTable()">
+                            <option value="">-- Elige tabla --</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary btn--sm" onclick="openDebugAddRow()" id="btn-debug-add" style="display:none;">+ Añadir</button>
                 </div>
-                <div style="display:flex; flex-wrap:wrap; gap:.5rem;">
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugSummary()">Resumen BD</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('users')">Users</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('groups')">Groups</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('teams')">Teams</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('matches')">Matches</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('players')">Players</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('predictions')">Predictions</button>
+                <div id="debug-table-container" style="overflow-x:auto; max-height:380px; overflow-y:auto;">
+                    <div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Selecciona una tabla para ver sus registros</div>
                 </div>
+                <div id="debug-pagination" style="display:none; justify-content:center; align-items:center; gap:.5rem; margin-top:.5rem; font-size:.75rem;"></div>
             </div>
         </div>
 
@@ -246,6 +244,33 @@
     </div>
 </div>
 
+<!-- ── DEBUG CRUD MODAL ──────────────────────────────────────── -->
+<div id="debug-modal" style="
+    display:none; position:fixed; inset:0; z-index:600;
+    background:rgba(26,26,46,.6); backdrop-filter:blur(4px);
+    align-items:flex-end; justify-content:center;
+">
+    <div id="debug-modal-sheet" style="
+        background:var(--cream); border-radius:1.75rem 1.75rem 0 0;
+        padding:1.75rem 1.5rem 2.5rem; width:100%; max-width:480px; max-height:85vh; overflow-y:auto;
+        box-shadow: 0 -8px 32px rgba(26,26,46,.15);
+        transform: translateY(100%); transition: transform .35s cubic-bezier(.4,0,.2,1);
+    ">
+        <div style="width:2.5rem; height:4px; background:var(--border); border-radius:2px; margin:0 auto 1.25rem;"></div>
+
+        <h2 id="debug-modal-title" style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.125rem; margin-bottom:1rem;"></h2>
+
+        <form id="debug-form">
+            <div id="debug-form-fields"></div>
+            <div id="debug-form-error" class="error-msg hidden" style="margin-bottom:.75rem;"></div>
+            <div style="display:flex; gap:.75rem;">
+                <button type="button" class="btn btn-ghost btn--full" onclick="closeDebugModal()">Cancelar</button>
+                <button type="submit" class="btn btn-green btn--full">💾 Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -299,33 +324,245 @@ function showPanel() {
     const user = getUser();
     const badge = document.getElementById('admin-user-badge');
     if (badge && user.name) badge.textContent = '👤 ' + user.name;
-    const debugTokenInput = document.getElementById('debug-token');
-    if (debugTokenInput) debugTokenInput.value = sessionStorage.getItem(DEBUG_TOKEN_KEY) || '';
     loadAdminMatches();
+    initDebugTables();
 }
 
 function getDebugToken() {
-    const input = document.getElementById('debug-token');
-    const token = (input?.value || '').trim();
+    const token = sessionStorage.getItem(DEBUG_TOKEN_KEY) || '';
     if (!token) {
-        showToast('Introduce DEBUG_DB_TOKEN antes de abrir debug', 'error');
+        showToast('Token debug no disponible. Reabre la sesion admin.', 'error');
         return null;
     }
-    sessionStorage.setItem(DEBUG_TOKEN_KEY, token);
     return token;
 }
 
-function openDebugSummary() {
+/* ── DB CRUD ──────────────────────────────────────────────────── */
+let debugColumns = [];
+let debugRows = [];
+let debugTableName = '';
+let debugTotal = 0;
+let debugOffset = 0;
+const DEBUG_LIMIT = 25;
+
+async function initDebugTables() {
     const token = getDebugToken();
     if (!token) return;
-    window.open(`/debug/db-summary?token=${encodeURIComponent(token)}`, '_blank');
+    const res = await fetch(`/debug/db-summary?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const select = document.getElementById('debug-table-select');
+    const tables = Object.keys(data.table_counts).sort();
+    select.innerHTML = '<option value="">-- Elige tabla --</option>' +
+        tables.map(t => `<option value="${t}">${t} (${data.table_counts[t]})</option>`).join('');
 }
 
-function openDebugTable(tableName) {
+async function loadDebugTable() {
+    const select = document.getElementById('debug-table-select');
+    debugTableName = select.value;
+    if (!debugTableName) {
+        document.getElementById('debug-table-container').innerHTML = '<div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Selecciona una tabla para ver sus registros</div>';
+        document.getElementById('debug-pagination').style.display = 'none';
+        document.getElementById('btn-debug-add').style.display = 'none';
+        return;
+    }
+    debugOffset = 0;
+    await fetchDebugRows();
+}
+
+async function fetchDebugRows() {
     const token = getDebugToken();
     if (!token) return;
-    window.open(`/debug/db-table/${encodeURIComponent(tableName)}?token=${encodeURIComponent(token)}`, '_blank');
+    const [colsRes, rowsRes] = await Promise.all([
+        fetch(`/debug/db-table/${encodeURIComponent(debugTableName)}/columns?token=${encodeURIComponent(token)}`),
+        fetch(`/debug/db-table/${encodeURIComponent(debugTableName)}?token=${encodeURIComponent(token)}&limit=${DEBUG_LIMIT}&offset=${debugOffset}`)
+    ]);
+    if (!colsRes.ok || !rowsRes.ok) return;
+    debugColumns = await colsRes.json();
+    const rowsData = await rowsRes.json();
+    debugRows = rowsData.items;
+    debugTotal = rowsData.total;
+    renderDebugTable();
+    document.getElementById('btn-debug-add').style.display = 'inline-flex';
 }
+
+function renderDebugTable() {
+    const container = document.getElementById('debug-table-container');
+    if (!debugRows.length) {
+        container.innerHTML = '<div style="font-size:.75rem; color:#8892A4; text-align:center; padding:1rem;">Sin registros</div>';
+    } else {
+        const cols = debugColumns.map(c => c.name);
+        let html = '<table style="width:100%; border-collapse:collapse; font-size:.7rem;"><thead><tr style="background:var(--sand-dark); position:sticky; top:0;">';
+        for (const c of debugColumns) {
+            html += `<th style="padding:.3rem .4rem; text-align:left; white-space:nowrap; font-weight:700; color:#555E72; border-bottom:2px solid var(--border);">${c.name}<br><span style="font-weight:400; font-size:.6rem; color:#8892A4;">${c.type}</span></th>`;
+        }
+        html += '<th style="padding:.3rem .4rem; text-align:center; border-bottom:2px solid var(--border); min-width:60px;">Acc</th></tr></thead><tbody>';
+        for (let i = 0; i < debugRows.length; i++) {
+            const row = debugRows[i];
+            html += '<tr style="border-bottom:1px solid var(--border);">';
+            for (const c of debugColumns) {
+                let val = row[c.name];
+                if (val === null || val === undefined) val = '<span style="color:#8892A4; font-style:italic;">NULL</span>';
+                else if (typeof val === 'string' && val.length > 40) val = val.substring(0, 38) + '…';
+                else val = String(val);
+                html += `<td style="padding:.25rem .4rem; vertical-align:top; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${val}</td>`;
+            }
+            const pkCol = debugColumns.find(c => c.pk);
+            const pkVal = pkCol ? row[pkCol.name] : null;
+            html += `<td style="padding:.25rem .4rem; text-align:center; white-space:nowrap;">
+                <button class="btn btn-ghost btn--sm" onclick="openDebugEditRow(${i})" style="padding:.15rem .35rem; font-size:.65rem;">✏️</button>
+                <button class="btn btn-ghost btn--sm" onclick="deleteDebugRow(${pkVal})" style="padding:.15rem .35rem; font-size:.65rem; color:var(--coral);">🗑️</button>
+            </td></tr>`;
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    const pagEl = document.getElementById('debug-pagination');
+    const totalPages = Math.ceil(debugTotal / DEBUG_LIMIT);
+    const curPage = Math.floor(debugOffset / DEBUG_LIMIT) + 1;
+    if (debugTotal > DEBUG_LIMIT) {
+        pagEl.style.display = 'flex';
+        pagEl.innerHTML = `
+            <button class="btn btn-ghost btn--sm" onclick="debugGoPage(${debugOffset - DEBUG_LIMIT})" ${debugOffset === 0 ? 'disabled' : ''}>← Anterior</button>
+            <span>Pág ${curPage} de ${totalPages} (${debugTotal} registros)</span>
+            <button class="btn btn-ghost btn--sm" onclick="debugGoPage(${debugOffset + DEBUG_LIMIT})" ${debugOffset + DEBUG_LIMIT >= debugTotal ? 'disabled' : ''}>Siguiente →</button>
+        `;
+    } else {
+        pagEl.style.display = debugTotal > 0 ? 'flex' : 'none';
+        if (debugTotal > 0) pagEl.innerHTML = `<span>${debugTotal} registros</span>`;
+    }
+}
+
+function debugGoPage(newOffset) {
+    if (newOffset < 0 || newOffset >= debugTotal) return;
+    debugOffset = newOffset;
+    fetchDebugRows();
+}
+
+function openDebugAddRow() {
+    document.getElementById('debug-modal-title').textContent = `Añadir registro a ${debugTableName}`;
+    document.getElementById('debug-form').dataset.mode = 'add';
+    document.getElementById('debug-form').dataset.rowId = '';
+    buildDebugForm({});
+    showDebugModal();
+}
+
+function openDebugEditRow(rowIndex) {
+    const row = debugRows[rowIndex];
+    if (!row) return;
+    document.getElementById('debug-modal-title').textContent = `Editar registro en ${debugTableName}`;
+    document.getElementById('debug-form').dataset.mode = 'edit';
+    const pkCol = debugColumns.find(c => c.pk);
+    document.getElementById('debug-form').dataset.rowId = pkCol ? row[pkCol.name] : '';
+    buildDebugForm(row);
+    showDebugModal();
+}
+
+function buildDebugForm(rowData) {
+    const container = document.getElementById('debug-form-fields');
+    let html = '';
+    for (const col of debugColumns) {
+        if (col.pk) continue;
+        const val = rowData[col.name] !== undefined ? rowData[col.name] : (col.default || '');
+        const displayVal = val === null || val === undefined ? '' : String(val);
+        const isNum = ['INTEGER', 'INT', 'BIGINT', 'SMALLINT', 'NUMERIC', 'REAL', 'FLOAT', 'DOUBLE'].some(t => col.type.toUpperCase().includes(t));
+        const isBool = col.type.toUpperCase().includes('BOOL');
+        const required = col.nullable ? '' : 'required';
+        html += `<div class="form-group" style="margin-bottom:.75rem;">
+            <label class="form-label" style="font-size:.75rem;">${col.name} <span style="font-weight:400; color:#8892A4;">${col.type}${col.nullable ? '' : ' *'}</span></label>`;
+        if (isBool) {
+            html += `<label style="display:flex; align-items:center; gap:.375rem; cursor:pointer; font-size:.8125rem;">
+                <input type="checkbox" name="${col.name}" value="1" ${displayVal === '1' || displayVal === 'true' ? 'checked' : ''} style="accent-color:var(--blue);">
+                <span style="color:#8892A4;">${col.name}</span>
+            </label>`;
+        } else {
+            html += `<input class="form-input" type="${isNum ? 'number' : 'text'}" name="${col.name}" value="${displayVal.replace(/"/g, '&quot;')}" ${required} style="font-size:.8125rem;">`;
+        }
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+function showDebugModal() {
+    document.getElementById('debug-form-error').classList.add('hidden');
+    const modal = document.getElementById('debug-modal');
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        document.getElementById('debug-modal-sheet').style.transform = 'translateY(0)';
+    });
+}
+
+function closeDebugModal() {
+    document.getElementById('debug-modal-sheet').style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        document.getElementById('debug-modal').style.display = 'none';
+    }, 350);
+}
+
+document.getElementById('debug-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('debug-modal')) closeDebugModal();
+});
+
+async function deleteDebugRow(rowId) {
+    if (rowId === null || rowId === undefined) {
+        showToast('No se encontro el ID del registro', 'error');
+        return;
+    }
+    if (!confirm(`¿Eliminar registro ${rowId} de ${debugTableName}?`)) return;
+    const token = getDebugToken();
+    if (!token) return;
+    const res = await fetch(`/debug/db-table/${encodeURIComponent(debugTableName)}/${rowId}?token=${encodeURIComponent(token)}`, { method: 'DELETE' });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || 'Error al eliminar', 'error');
+        return;
+    }
+    showToast('✅ Eliminado', 'success');
+    fetchDebugRows();
+}
+
+document.getElementById('debug-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('debug-form-error');
+    errEl.classList.add('hidden');
+    const token = getDebugToken();
+    if (!token) return;
+
+    const mode = e.target.dataset.mode;
+    const rowId = e.target.dataset.rowId;
+    const fd = new FormData(e.target);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+        if (v === '') body[k] = null;
+        else body[k] = v;
+    }
+    for (const col of debugColumns) {
+        if (col.pk) continue;
+        const isBool = col.type.toUpperCase().includes('BOOL');
+        if (isBool && !(col.name in body)) body[col.name] = '0';
+    }
+
+    let url, method;
+    if (mode === 'add') {
+        url = `/debug/db-table/${encodeURIComponent(debugTableName)}?token=${encodeURIComponent(token)}`;
+        method = 'POST';
+    } else {
+        url = `/debug/db-table/${encodeURIComponent(debugTableName)}/${rowId}?token=${encodeURIComponent(token)}`;
+        method = 'PUT';
+    }
+
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        errEl.textContent = err.detail || 'Error al guardar';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    showToast('✅ Guardado', 'success');
+    closeDebugModal();
+    fetchDebugRows();
+});
 
 async function downloadUsersMediaBackup() {
     const adminToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '';
