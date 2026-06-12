@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.media import MEDIA_DIR, ensure_media_dirs
+from api.routes.admin import router as admin_router
 from api.routes.auth import router as auth_router
 from api.routes.chat import router as chat_router
 from api.routes.debug import router as debug_router
@@ -114,6 +115,7 @@ async def handle_value_error(_: Request, exc: ValueError) -> JSONResponse:
 
 
 app.include_router(pages_router)
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(debug_router)

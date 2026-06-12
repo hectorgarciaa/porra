@@ -87,6 +87,24 @@
             </div>
         </div>
 
+        <div class="card card--flat" style="margin-bottom:1rem;">
+            <div class="card-body--sm">
+                <div style="margin-bottom:.75rem;">
+                    <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Backup de fotos</div>
+                    <div style="font-size:.75rem; color:#8892A4;">Descarga un zip de media/users o restaura el ultimo backup guardado.</div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="downloadUsersMediaBackup()">Descargar backup</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="restoreUsersMediaBackup()">Restaurar ultimo backup</button>
+                </div>
+                <div class="input-wrapper">
+                    <span class="input-icon">🗂️</span>
+                    <input class="form-input form-input--icon-left" type="text" id="backup-filename"
+                           placeholder="Backup concreto opcional, ej: users_backup_20260612_095319.zip" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
         <!-- Matches list -->
         <div id="admin-matches">
             <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
@@ -292,6 +310,70 @@ function openDebugTable(tableName) {
     const token = getDebugToken();
     if (!token) return;
     window.open(`/debug/db-table/${encodeURIComponent(tableName)}?token=${encodeURIComponent(token)}`, '_blank');
+}
+
+async function downloadUsersMediaBackup() {
+    const adminToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '';
+    if (!adminToken) {
+        showToast('Sesion admin no disponible', 'error');
+        return;
+    }
+
+    const res = await fetch('/admin/media-users/backup', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': adminToken }
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || 'No se pudo crear el backup', 'error');
+        return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename=\"?([^"]+)\"?/i);
+    const filename = match?.[1] || 'media_users_backup.zip';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    const backupFilenameInput = document.getElementById('backup-filename');
+    if (backupFilenameInput) backupFilenameInput.value = filename;
+    showToast('Backup descargado', 'success');
+}
+
+async function restoreUsersMediaBackup() {
+    const adminToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '';
+    if (!adminToken) {
+        showToast('Sesion admin no disponible', 'error');
+        return;
+    }
+
+    const backupFilename = (document.getElementById('backup-filename')?.value || '').trim();
+    const url = backupFilename
+        ? `/admin/media-users/restore?backup_filename=${encodeURIComponent(backupFilename)}`
+        : '/admin/media-users/restore';
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-Admin-Token': adminToken }
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || 'No se pudo restaurar el backup', 'error');
+        return;
+    }
+
+    const data = await res.json();
+    const backupFilenameInput = document.getElementById('backup-filename');
+    if (backupFilenameInput && data.backup_filename) backupFilenameInput.value = data.backup_filename;
+    showToast(`Backup restaurado: ${data.restored_files} archivos`, 'success');
 }
 
 /* ── Match loading ───────────────────────────────────────────── */
