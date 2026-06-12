@@ -122,10 +122,16 @@ CREATE TABLE IF NOT EXISTS global_predictions (
     third_place_team_id INTEGER,
     fourth_place_team_id INTEGER,
     best_player_player_id INTEGER,
+    best_gk_player_id INTEGER,
+    best_young_player_id INTEGER,
     max_scorer_player_id INTEGER,
     max_assister_player_id INTEGER,
     max_yellow_cards_player_id INTEGER,
     max_red_cards_player_id INTEGER,
+    revelation_team_id INTEGER,
+    disappointment_team_id INTEGER,
+    revelation_player_id INTEGER,
+    disappointment_player_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE,
@@ -134,10 +140,16 @@ CREATE TABLE IF NOT EXISTS global_predictions (
     FOREIGN KEY (third_place_team_id) REFERENCES teams(id) ON DELETE SET NULL,
     FOREIGN KEY (fourth_place_team_id) REFERENCES teams(id) ON DELETE SET NULL,
     FOREIGN KEY (best_player_player_id) REFERENCES players(id) ON DELETE SET NULL,
+    FOREIGN KEY (best_gk_player_id) REFERENCES players(id) ON DELETE SET NULL,
+    FOREIGN KEY (best_young_player_id) REFERENCES players(id) ON DELETE SET NULL,
     FOREIGN KEY (max_scorer_player_id) REFERENCES players(id) ON DELETE SET NULL,
     FOREIGN KEY (max_assister_player_id) REFERENCES players(id) ON DELETE SET NULL,
     FOREIGN KEY (max_yellow_cards_player_id) REFERENCES players(id) ON DELETE SET NULL,
-    FOREIGN KEY (max_red_cards_player_id) REFERENCES players(id) ON DELETE SET NULL
+    FOREIGN KEY (max_red_cards_player_id) REFERENCES players(id) ON DELETE SET NULL,
+    FOREIGN KEY (revelation_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+    FOREIGN KEY (disappointment_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+    FOREIGN KEY (revelation_player_id) REFERENCES players(id) ON DELETE SET NULL,
+    FOREIGN KEY (disappointment_player_id) REFERENCES players(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (

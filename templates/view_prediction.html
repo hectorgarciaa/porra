@@ -327,11 +327,17 @@ function populateGlobalReadonly() {
         { label:'🥈 Subcampeón',        value: g?.runner_up_team_id,          type:'team' },
         { label:'🥉 3er puesto',        value: g?.third_place_team_id,        type:'team' },
         { label:'4º puesto',            value: g?.fourth_place_team_id,       type:'team' },
+        { label:'🚀 Equipo revelación',  value: g?.revelation_team_id,        type:'team' },
+        { label:'💩 Equipo decepción',   value: g?.disappointment_team_id,    type:'team' },
         { label:'⭐ Mejor jugador',     value: g?.best_player_player_id,     type:'player' },
+        { label:'🧤 Mejor portero',     value: g?.best_gk_player_id,         type:'player' },
+        { label:'🌟 Mejor jugador joven', value: g?.best_young_player_id,    type:'player' },
         { label:'⚽ El que más mojará',   value: g?.max_scorer_player_id,      type:'player' },
         { label:'👟 Máximo asistente',  value: g?.max_assister_player_id,    type:'player' },
         { label:'🟡 Más amarillas',     value: g?.max_yellow_cards_player_id,type:'player' },
         { label:'🟥 Mayor carnicero',         value: g?.max_red_cards_player_id,   type:'player' },
+        { label:'🔥 Jugador revelación', value: g?.revelation_player_id,      type:'player' },
+        { label:'📉 Jugador decepción',  value: g?.disappointment_player_id,  type:'player' },
     ];
 
     el.innerHTML = fields.map(f => {

@@ -458,10 +458,16 @@ function renderGlobalForm() {
         { name:'third_place_team_id',label:'🥉 3er puesto',        type:'team' },
         { name:'fourth_place_team_id',label:'4º puesto',           type:'team' },
         { name:'best_player_player_id',label:'⭐ Mejor jugador',   type:'player' },
+        { name:'best_gk_player_id',  label:'🧤 Mejor portero',    type:'player' },
+        { name:'best_young_player_id',label:'🌟 Mejor jugador joven', type:'player' },
         { name:'max_scorer_player_id',  label:'⚽ El que más mojará', type:'player' },
         { name:'max_assister_player_id',label:'👟 Máximo asistente',type:'player' },
         { name:'max_yellow_cards_player_id',label:'🟡 Más amarillas',type:'player' },
         { name:'max_red_cards_player_id',   label:'🟥 Mayor carnicero',    type:'player' },
+        { name:'revelation_team_id', label:'🚀 Equipo revelación',  type:'team' },
+        { name:'disappointment_team_id', label:'💩 Equipo decepción', type:'team' },
+        { name:'revelation_player_id',label:'🔥 Jugador revelación', type:'player' },
+        { name:'disappointment_player_id',label:'📉 Jugador decepción', type:'player' },
     ];
 
     el.innerHTML = notice + `<div class="card card--flat"><div class="card-body">

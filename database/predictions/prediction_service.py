@@ -196,15 +196,21 @@ def getFullPredictionById(prediction_id: int) -> JsonDict:
                     global_prediction["runner_up_team_id"],
                     global_prediction["third_place_team_id"],
                     global_prediction["fourth_place_team_id"],
+                    global_prediction["revelation_team_id"],
+                    global_prediction["disappointment_team_id"],
                 ]
             )
             global_player_ids.extend(
                 [
                     global_prediction["best_player_player_id"],
+                    global_prediction["best_gk_player_id"],
+                    global_prediction["best_young_player_id"],
                     global_prediction["max_scorer_player_id"],
                     global_prediction["max_assister_player_id"],
                     global_prediction["max_yellow_cards_player_id"],
                     global_prediction["max_red_cards_player_id"],
+                    global_prediction["revelation_player_id"],
+                    global_prediction["disappointment_player_id"],
                 ]
             )
 
@@ -257,11 +263,17 @@ def getFullPredictionById(prediction_id: int) -> JsonDict:
                 "runner_up_team": team_map.get(global_prediction["runner_up_team_id"]),
                 "third_place_team": team_map.get(global_prediction["third_place_team_id"]),
                 "fourth_place_team": team_map.get(global_prediction["fourth_place_team_id"]),
+                "revelation_team": team_map.get(global_prediction["revelation_team_id"]),
+                "disappointment_team": team_map.get(global_prediction["disappointment_team_id"]),
                 "best_player": player_map.get(global_prediction["best_player_player_id"]),
+                "best_gk_player": player_map.get(global_prediction["best_gk_player_id"]),
+                "best_young_player": player_map.get(global_prediction["best_young_player_id"]),
                 "max_scorer_player": player_map.get(global_prediction["max_scorer_player_id"]),
                 "max_assister_player": player_map.get(global_prediction["max_assister_player_id"]),
                 "max_yellow_cards_player": player_map.get(global_prediction["max_yellow_cards_player_id"]),
                 "max_red_cards_player": player_map.get(global_prediction["max_red_cards_player_id"]),
+                "revelation_player": player_map.get(global_prediction["revelation_player_id"]),
+                "disappointment_player": player_map.get(global_prediction["disappointment_player_id"]),
             }
 
     return {

@@ -195,6 +195,30 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE global_predictions ADD COLUMN best_player_player_id INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"
         )
+    if global_prediction_columns and "best_gk_player_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN best_gk_player_id INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"
+        )
+    if global_prediction_columns and "best_young_player_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN best_young_player_id INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"
+        )
+    if global_prediction_columns and "revelation_team_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN revelation_team_id INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"
+        )
+    if global_prediction_columns and "disappointment_team_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN disappointment_team_id INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"
+        )
+    if global_prediction_columns and "revelation_player_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN revelation_player_id INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"
+        )
+    if global_prediction_columns and "disappointment_player_id" not in global_prediction_columns:
+        connection.execute(
+            "ALTER TABLE global_predictions ADD COLUMN disappointment_player_id INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"
+        )
     chat_columns: set[str] = {
         str(row[1])
         for row in connection.execute("PRAGMA table_info(chat_messages)").fetchall()

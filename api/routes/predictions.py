@@ -62,10 +62,16 @@ def upsert_my_global_prediction(
         third_place_team_id=payload.third_place_team_id,
         fourth_place_team_id=payload.fourth_place_team_id,
         best_player_player_id=payload.best_player_player_id,
+        best_gk_player_id=payload.best_gk_player_id,
+        best_young_player_id=payload.best_young_player_id,
         max_scorer_player_id=payload.max_scorer_player_id,
         max_assister_player_id=payload.max_assister_player_id,
         max_yellow_cards_player_id=payload.max_yellow_cards_player_id,
         max_red_cards_player_id=payload.max_red_cards_player_id,
+        revelation_team_id=payload.revelation_team_id,
+        disappointment_team_id=payload.disappointment_team_id,
+        revelation_player_id=payload.revelation_player_id,
+        disappointment_player_id=payload.disappointment_player_id,
     )
     return {"global_prediction": global_prediction}
 
