@@ -139,7 +139,7 @@ async function init() {
         globalData = pred.global_prediction;
         document.getElementById('has-prediction').classList.remove('hidden');
         updateSummary(pred.prediction);
-        loadMatchesForPrediction();
+        loadMatchesForPrediction(pred.match_predictions || []);
         renderGlobalForm();
     } catch(e) { console.error(e); }
 }
@@ -157,7 +157,19 @@ async function createPrediction() {
         btn.disabled = false; btn.textContent = '🍺 Crear mi porra';
         return;
     }
-    location.reload();
+    const data = await res.json();
+    predictionId = data.prediction.id;
+    globalData = null;
+    document.getElementById('no-prediction').classList.add('hidden');
+    document.getElementById('has-prediction').classList.remove('hidden');
+    updateSummary(data.prediction);
+    await Promise.all([
+        loadMatchesForPrediction([]),
+        Promise.resolve(renderGlobalForm()),
+    ]);
+    btn.disabled = false;
+    btn.textContent = '🍺 Crear mi porra';
+    showToast('✅ Porra creada', 'success');
 }
 
 /* ── Summary ──────────────────────────────────────────────── */
@@ -186,31 +198,29 @@ function updateSummaryFromMatches(matches) {
 }
 
 /* ── Load matches ─────────────────────────────────────────── */
-async function loadMatchesForPrediction() {
-    if (!groupsCache) {
-        const res = await api('/groups');
-        if (!res || !res.ok) return;
-        groupsCache = await res.json();
-    }
-    allPredMatches = [];
-    for (const g of groupsCache) {
-        const r = await api('/groups/' + g.id);
-        if (!r || !r.ok) continue;
-        const gd = await r.json();
-        for (const m of (gd.matches || [])) {
-            m.group_letter = g.letter;
-            m.my_prediction = null;
-            allPredMatches.push(m);
-        }
-    }
+async function loadMatchesForPrediction(existingMatchPredictions = null) {
+    const res = await api('/matches');
+    if (!res || !res.ok) return;
+    allPredMatches = await res.json();
+    allPredMatches = allPredMatches.map(m => ({
+        ...m,
+        group_letter: m.group?.letter || null,
+        my_prediction: null,
+    }));
     allPredMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
 
-    // Get user's predictions
-    const predRes = await api('/predictions/me');
-    if (predRes && predRes.ok) {
-        const predData = await predRes.json();
-        const mpreds = predData.match_predictions || [];
-        for (const mp of mpreds) {
+    const matchPredictions = existingMatchPredictions ?? [];
+    if (existingMatchPredictions === null) {
+        const predRes = await api('/predictions/me');
+        if (predRes && predRes.ok) {
+            const predData = await predRes.json();
+            for (const mp of (predData.match_predictions || [])) {
+                const m = allPredMatches.find(x => x.id === mp.match_id);
+                if (m) m.my_prediction = mp;
+            }
+        }
+    } else {
+        for (const mp of matchPredictions) {
             const m = allPredMatches.find(x => x.id === mp.match_id);
             if (m) m.my_prediction = mp;
         }
@@ -411,17 +421,16 @@ async function loadTeamsForGlobal() {
         groupsCache = await res.json();
     }
     for (const g of groupsCache) {
-        const r = await api('/groups/' + g.id);
-        if (!r || !r.ok) continue;
-        const gd = await r.json();
-        for (const t of (gd.standings || [])) {
+        for (const t of (g.standings || [])) {
             teamsCache[t.team.id] = t.team;
-            const tr = await api('/teams/' + t.team.id);
-            if (tr && tr.ok) {
-                const td = await tr.json();
-                for (const p of (td.players || [])) playersCache[p.id] = p;
-            }
         }
+    }
+
+    const playersRes = await api('/players');
+    if (!playersRes || !playersRes.ok) return;
+    const players = await playersRes.json();
+    for (const p of players) {
+        playersCache[p.id] = p;
     }
 }
 

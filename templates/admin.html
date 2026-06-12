@@ -383,32 +383,46 @@ let currentMatchId = null;
 let adminFilterMode = 'all';
 let selected = { scorers: [], assists: [], yellows: [], reds: [] };
 let scores = { local: 0, away: 0, localPen: 0, awayPen: 0 };
+let teamDetailsCache = {};
+let teamDetailsPromises = {};
+
+function getTeamDetailPromise(teamId) {
+    if (teamDetailsCache[teamId]) return Promise.resolve(teamDetailsCache[teamId]);
+    if (teamDetailsPromises[teamId]) return teamDetailsPromises[teamId];
+
+    teamDetailsPromises[teamId] = (async () => {
+        const res = await api('/teams/' + teamId);
+        if (!res || !res.ok) return null;
+        const data = await res.json();
+        teamDetailsCache[teamId] = data;
+        return data;
+    })();
+
+    return teamDetailsPromises[teamId];
+}
 
 async function loadAdminMatches() {
     const el = document.getElementById('admin-matches');
-    const res = await api('/groups');
+    const res = await api('/matches');
     if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error al cargar</p>'; return; }
-    const groups = await res.json();
-    adminMatches = [];
-    for (const g of groups) {
-        const r = await api('/groups/' + g.id);
-        if (!r || !r.ok) continue;
-        const gd = await r.json();
-        for (const m of (gd.matches || [])) {
-            m.group_letter = g.letter;
-            m.group_id = g.id;
-            adminMatches.push(m);
-            // Cache players per team
-            for (const s of (gd.standings || [])) {
-                if (!matchPlayers[s.team.id]) {
-                    const tr = await api('/teams/' + s.team.id);
-                    if (tr && tr.ok) {
-                        const td = await tr.json();
-                        matchPlayers[s.team.id] = td.players || [];
-                    }
-                }
-            }
-        }
+    adminMatches = await res.json();
+    const teamIds = new Set();
+    adminMatches = adminMatches.map(m => {
+        if (m.local_team?.id) teamIds.add(m.local_team.id);
+        if (m.away_team?.id) teamIds.add(m.away_team.id);
+        return {
+            ...m,
+            group_letter: m.group?.letter || null,
+            group_id: m.group?.id || null,
+        };
+    });
+
+    const teamDetails = await Promise.all(
+        [...teamIds].map(teamId => getTeamDetailPromise(teamId))
+    );
+    for (const td of teamDetails) {
+        if (!td || !td.team) continue;
+        matchPlayers[td.team.id] = td.players || [];
     }
     adminMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
     renderAdminMatches(adminMatches);

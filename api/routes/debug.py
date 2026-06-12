@@ -2,7 +2,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from database.init_db import DB_PATH, IS_POSTGRES, get_connection, init_db
+from database.init_db import DB_PATH, get_connection, init_db, is_postgres_enabled
 from database.types import JsonDict, JsonList
 
 
@@ -24,7 +24,7 @@ def _require_debug_token(token: str | None) -> None:
 
 
 def _get_existing_tables(connection) -> list[str]:
-    if IS_POSTGRES:
+    if is_postgres_enabled():
         rows = connection.execute(
             """
             SELECT table_name AS name
@@ -61,7 +61,7 @@ def get_db_summary(token: str | None = Query(default=None)) -> JsonDict:
         }
 
     return {
-        "db_path": "postgres:DATABASE_URL" if IS_POSTGRES else str(DB_PATH),
+        "db_path": "postgres:DATABASE_URL" if is_postgres_enabled() else str(DB_PATH),
         "table_counts": table_counts,
     }
 

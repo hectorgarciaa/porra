@@ -61,13 +61,13 @@ function logout() {
 /* ── Auth check ────────────────────────────────────────────── */
 function checkAuth() {
     const token = getToken();
-    const publicPaths = ['/', '/login', '/register'];
+    const publicPaths = ['/', '/login', '/register', '/admin'];
     const isPublic = publicPaths.includes(location.pathname);
     if (!token && !isPublic) {
         window.location.href = '/login';
         return false;
     }
-    if (token && isPublic && location.pathname !== '/') {
+    if (token && isPublic && location.pathname !== '/' && location.pathname !== '/admin') {
         // redirect authenticated users away from login/register
         window.location.href = '/dashboard';
         return false;

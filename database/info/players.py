@@ -1,56 +1,60 @@
 from __future__ import annotations
 
-import sqlite3
-
 from database.init_db import get_connection, init_db
-from database.normalize import normalize_required_text
-from database.predictions._helpers import team_exists
-from database.types import RowDict
+from database.types import JsonList
 
 
-class PlayerAlreadyExistsError(ValueError):
-    pass
-
-
-def createPlayer(team_id: int, name: str, surname: str, number: int) -> RowDict:
+def getPlayersOverview() -> JsonList:
     init_db()
-    normalized_name = normalize_required_text(name, "name")
-    normalized_surname = normalize_required_text(surname, "surname")
-
-    if number <= 0:
-        raise ValueError("El dorsal debe ser mayor que 0.")
 
     with get_connection() as connection:
-        if not team_exists(connection, team_id):
-            raise ValueError(f"No existe el equipo con id {team_id}.")
-
-        existing_number = connection.execute(
-            "SELECT id FROM players WHERE team_id = ? AND number = ?",
-            (team_id, number),
-        ).fetchone()
-        if existing_number is not None:
-            raise PlayerAlreadyExistsError(
-                f"Ya existe un jugador con el dorsal {number} en el equipo {team_id}."
-            )
-
-        cursor = connection.execute(
+        rows = connection.execute(
             """
-            INSERT INTO players (team_id, name, surname, number)
-            VALUES (?, ?, ?, ?)
-            """,
-            (team_id, normalized_name, normalized_surname, number),
-        )
-        connection.commit()
-
-        player = connection.execute(
-            """
-            SELECT id, team_id, name, surname, number,
-                   num_goals, num_assists, num_yellow_cards, num_red_cards,
-                   created_at, updated_at
+            SELECT
+                players.id,
+                players.team_id,
+                players.name,
+                players.surname,
+                players.number,
+                players.num_goals,
+                players.num_assists,
+                players.num_yellow_cards,
+                players.num_red_cards,
+                players.created_at,
+                players.updated_at,
+                teams.name AS team_name,
+                teams.fifa_slug AS team_fifa_slug,
+                teams.group_id AS team_group_id,
+                groups.letter AS team_group_letter
             FROM players
-            WHERE id = ?
-            """,
-            (cursor.lastrowid,),
-        ).fetchone()
+            INNER JOIN teams ON teams.id = players.team_id
+            INNER JOIN groups ON groups.id = teams.group_id
+            ORDER BY
+                teams.name ASC,
+                players.number ASC,
+                players.surname ASC,
+                players.name ASC,
+                players.id ASC
+            """
+        ).fetchall()
 
-    return dict(player)
+    return [
+        {
+            "id": row["id"],
+            "team_id": row["team_id"],
+            "name": row["name"],
+            "surname": row["surname"],
+            "number": row["number"],
+            "num_goals": row["num_goals"],
+            "num_assists": row["num_assists"],
+            "num_yellow_cards": row["num_yellow_cards"],
+            "num_red_cards": row["num_red_cards"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "team_name": row["team_name"],
+            "team_fifa_slug": row["team_fifa_slug"],
+            "team_group_id": row["team_group_id"],
+            "team_group_letter": row["team_group_letter"],
+        }
+        for row in rows
+    ]

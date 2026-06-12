@@ -5,9 +5,11 @@ from api.schemas.matches import SetMatchResultRequest
 from database.info.world_cup import (
     getGroupOverviewById,
     getGroupsOverview,
+    getMatchesOverview,
     getMatchOverviewById,
     getTeamOverviewById,
 )
+from database.info.players import getPlayersOverview
 from database.predictions.prediction_service import processMatchResult
 from database.types import JsonDict, JsonList, RowDict
 
@@ -23,6 +25,11 @@ def get_groups() -> JsonList:
 @router.get("/groups/{group_id}")
 def get_group_by_id(group_id: int) -> JsonDict:
     return getGroupOverviewById(group_id)
+
+
+@router.get("/matches")
+def get_matches() -> JsonList:
+    return getMatchesOverview()
 
 
 @router.get("/matches/{match_id}")
@@ -56,3 +63,8 @@ def set_match_result(
 @router.get("/teams/{team_id}")
 def get_team_by_id(team_id: int) -> JsonDict:
     return getTeamOverviewById(team_id)
+
+
+@router.get("/players")
+def get_players() -> JsonList:
+    return getPlayersOverview()

@@ -197,6 +197,57 @@ def getGroupsOverview() -> JsonList:
         ]
 
 
+def getMatchesOverview() -> JsonList:
+    init_db()
+
+    with get_connection() as connection:
+        match_rows = connection.execute(
+            """
+            SELECT
+                matches.id,
+                matches.stage,
+                matches.group_id,
+                matches.kickoff_at,
+                matches.venue,
+                matches.local_goals,
+                matches.away_goals,
+                matches.winner_id,
+                matches.has_extra_time,
+                matches.has_penalties,
+                matches.local_penalties,
+                matches.away_penalties,
+                groups.letter AS group_letter,
+                local_team.id AS local_team_id,
+                local_team.name AS local_team_name,
+                local_team.fifa_slug AS local_team_slug,
+                local_team.group_id AS local_team_group_id,
+                away_team.id AS away_team_id,
+                away_team.name AS away_team_name,
+                away_team.fifa_slug AS away_team_slug,
+                away_team.group_id AS away_team_group_id
+            FROM matches
+            LEFT JOIN groups ON groups.id = matches.group_id
+            INNER JOIN teams AS local_team ON local_team.id = matches.local_team_id
+            INNER JOIN teams AS away_team ON away_team.id = matches.away_team_id
+            ORDER BY matches.kickoff_at, matches.id
+            """
+        ).fetchall()
+
+    matches = []
+    for row in match_rows:
+        match = _serialize_match_summary(row)
+        if row["group_letter"] is not None:
+            match["group"] = {
+                "id": row["group_id"],
+                "letter": row["group_letter"],
+            }
+        else:
+            match["group"] = None
+        matches.append(match)
+
+    return matches
+
+
 def getGroupOverviewById(group_id: int) -> JsonDict:
     init_db()
 

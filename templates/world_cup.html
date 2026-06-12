@@ -102,6 +102,23 @@ let allTeams = [];
 let allPlayers = [];
 let state = {};
 let currentMatchFilter = 'all';
+let teamDetailsCache = {};
+let teamDetailsPromises = {};
+
+function getTeamDetailPromise(teamId) {
+    if (teamDetailsCache[teamId]) return Promise.resolve(teamDetailsCache[teamId]);
+    if (teamDetailsPromises[teamId]) return teamDetailsPromises[teamId];
+
+    teamDetailsPromises[teamId] = (async () => {
+        const res = await api('/teams/' + teamId);
+        if (!res || !res.ok) return null;
+        const data = await res.json();
+        teamDetailsCache[teamId] = data;
+        return data;
+    })();
+
+    return teamDetailsPromises[teamId];
+}
 
 /* ── TAB SWITCHING ─────────────────────────────────────────── */
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -165,9 +182,8 @@ function renderGroups(groups) {
 async function loadTeamDetail(id) {
     const el = document.getElementById('groups-content');
     el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div> Cargando equipo...</div>';
-    const res = await api('/teams/' + id);
-    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error</p>'; return; }
-    const t = await res.json();
+    const t = await getTeamDetailPromise(id);
+    if (!t) { el.innerHTML = '<p class="microcopy">Error</p>'; return; }
     const pos = t.summary?.group_position || '-';
     el.innerHTML = `
         <button onclick="renderGroups(groupsData)" class="btn btn-ghost btn--sm" style="margin-bottom:1rem;">← Volver a grupos</button>
@@ -242,21 +258,10 @@ async function loadBracket() {
 /* ── PARTIDOS ─────────────────────────────────────────────── */
 async function loadMatches() {
     const el = document.getElementById('matches-content');
-    if (!groupsData.length) {
-        const res = await api('/groups');
-        if (!res || !res.ok) return;
-        groupsData = await res.json();
-    }
-    allMatches = [];
-    for (const g of groupsData) {
-        const r = await api('/groups/' + g.id);
-        if (!r || !r.ok) continue;
-        const gd = await r.json();
-        for (const m of (gd.matches || [])) {
-            m.group_letter = g.letter;
-            allMatches.push(m);
-        }
-    }
+    const res = await api('/matches');
+    if (!res || !res.ok) { el.innerHTML = '<p class="microcopy">Error al cargar partidos</p>'; return; }
+    allMatches = await res.json();
+    allMatches = allMatches.map(m => ({ ...m, group_letter: m.group?.letter || null }));
     allMatches.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
     renderMatches(allMatches, currentMatchFilter);
 }
@@ -421,16 +426,17 @@ function renderTeams(teams) {
 
 /* ── JUGADORES ────────────────────────────────────────────── */
 async function loadPlayers() {
-    if (!allTeams.length) await loadTeams();
-    allPlayers = [];
-    for (const t of allTeams) {
-        const res = await api('/teams/' + t.id);
-        if (!res || !res.ok) continue;
-        const td = await res.json();
-        for (const p of (td.players || [])) {
-            allPlayers.push({ ...p, team_name: t.name, team_group: t.group });
-        }
+    const res = await api('/players');
+    if (!res || !res.ok) {
+        document.getElementById('players-content').innerHTML = '<p class="microcopy">Error al cargar jugadores</p>';
+        return;
     }
+    allPlayers = await res.json();
+    allPlayers = allPlayers.map(p => ({
+        ...p,
+        team_name: p.team_name,
+        team_group: p.team_group_letter,
+    }));
     renderPlayers(allPlayers);
 }
 

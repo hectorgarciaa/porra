@@ -18,8 +18,15 @@ DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "porra.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 POSTGRES_SCHEMA_PATH = Path(__file__).resolve().parent / "schema.postgres.sql"
-DATABASE_URL = os.getenv("DATABASE_URL")
-IS_POSTGRES = bool(DATABASE_URL)
+
+
+def get_database_url() -> str | None:
+    value = os.getenv("DATABASE_URL")
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def is_postgres_enabled() -> bool:
+    return get_database_url() is not None
 
 
 class PostgresCursor:
@@ -208,7 +215,7 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
 
 
 def init_db() -> Path:
-    if IS_POSTGRES:
+    if is_postgres_enabled():
         with get_connection() as connection:
             _acquire_postgres_init_lock(connection)
             connection.execute(POSTGRES_SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -230,9 +237,10 @@ def init_db() -> Path:
 
 
 def get_connection() -> sqlite3.Connection:
-    if IS_POSTGRES:
-        assert DATABASE_URL is not None
-        return PostgresConnection(psycopg.connect(DATABASE_URL, row_factory=dict_row))
+    if is_postgres_enabled():
+        database_url = get_database_url()
+        assert database_url is not None
+        return PostgresConnection(psycopg.connect(database_url, row_factory=dict_row))
 
     connection = sqlite3.connect(DB_PATH)
     connection.execute("PRAGMA foreign_keys = ON;")
