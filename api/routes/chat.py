@@ -10,8 +10,8 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 @router.get("/messages")
-def list_messages(since: int = 0) -> JsonList:
-    return get_messages(since_id=since)
+def list_messages(since: int = 0, before: int | None = None) -> JsonList:
+    return get_messages(since_id=since, before_id=before)
 
 
 @router.post("/messages")

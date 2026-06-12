@@ -53,14 +53,18 @@
 {% block scripts %}
 <script>
 let lastId = 0;
+let firstId = Infinity;
 let userId = null;
-const pollTimer = null;
+let loadingOlder = false;
+let hasMore = true;
+const MAX_DOM_MSGS = 300;
 
 (async function init() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     userId = user.id;
     await loadMessages();
     setInterval(loadMessages, 3000);
+    document.getElementById('chat-scroll').addEventListener('scroll', onChatScroll);
 })();
 
 async function loadMessages() {
@@ -73,26 +77,70 @@ async function loadMessages() {
     document.getElementById('chat-loading')?.remove();
     for (const m of msgs) {
         lastId = Math.max(lastId, m.id);
-        const isMine = m.user_id === userId;
-        const div = document.createElement('div');
-        div.className = 'chat-row ' + (isMine ? 'mine' : 'other');
-        let avatarHtml = '';
-        if (!isMine) {
-            if (m.user_img) {
-                avatarHtml = `<img src="${m.user_img}" class="chat-avatar">`;
-            } else {
-                avatarHtml = `<div class="chat-avatar-placeholder">${(m.user_name||'?')[0].toUpperCase()}</div>`;
-            }
-        }
-        let body = '';
-        if (!isMine) body += `<div class="chat-bubble__author">${m.user_name||'?'}</div>`;
-        if (m.text) body += `<div>${escapeHtml(m.text)}</div>`;
-        if (m.image_url) body += `<img src="${m.image_url}" class="chat-img--inline" onclick="window.open('${m.image_url}')" loading="lazy">`;
-        body += `<div class="chat-bubble__time">${new Date(m.created_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>`;
-        div.innerHTML = avatarHtml + `<div class="chat-bubble--chat">${body}</div>`;
-        container.appendChild(div);
+        if (m.id < firstId) firstId = m.id;
+        container.appendChild(buildMsgEl(m));
     }
+    trimOldest(container);
     if (wasAtBottom) container.scrollTop = container.scrollHeight;
+}
+
+async function loadOlder() {
+    if (loadingOlder || !hasMore) return;
+    loadingOlder = true;
+    const res = await api('/chat/messages?before=' + firstId);
+    if (!res || !res.ok) { loadingOlder = false; return; }
+    const msgs = await res.json();
+    if (!msgs.length) { hasMore = false; loadingOlder = false; return; }
+    const container = document.getElementById('chat-scroll');
+    const prevHeight = container.scrollHeight;
+    for (const m of msgs) {
+        if (m.id < firstId) firstId = m.id;
+        container.insertBefore(buildMsgEl(m), container.firstChild);
+    }
+    container.scrollTop = container.scrollHeight - prevHeight;
+    trimNewest(container);
+    loadingOlder = false;
+}
+
+function onChatScroll() {
+    const c = document.getElementById('chat-scroll');
+    if (c.scrollTop < 80) loadOlder();
+}
+
+function buildMsgEl(m) {
+    const isMine = m.user_id === userId;
+    const div = document.createElement('div');
+    div.className = 'chat-row ' + (isMine ? 'mine' : 'other');
+    let avatarHtml = '';
+    if (!isMine) {
+        if (m.user_img) {
+            avatarHtml = `<img src="${m.user_img}" class="chat-avatar">`;
+        } else {
+            avatarHtml = `<div class="chat-avatar-placeholder">${(m.user_name||'?')[0].toUpperCase()}</div>`;
+        }
+    }
+    let body = '';
+    if (!isMine) body += `<div class="chat-bubble__author">${m.user_name||'?'}</div>`;
+    if (m.text) body += `<div>${escapeHtml(m.text)}</div>`;
+    if (m.image_url) body += `<img src="${m.image_url}" class="chat-img--inline" onclick="window.open('${m.image_url}')" loading="lazy">`;
+    body += `<div class="chat-bubble__time">${new Date(m.created_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>`;
+    div.innerHTML = avatarHtml + `<div class="chat-bubble--chat">${body}</div>`;
+    return div;
+}
+
+function trimOldest(container) {
+    while (container.children.length > MAX_DOM_MSGS) {
+        const first = container.firstChild;
+        if (first.id === 'chat-loading') break;
+        first.remove();
+    }
+}
+
+function trimNewest(container) {
+    while (container.children.length > MAX_DOM_MSGS) {
+        const last = container.lastChild;
+        last.remove();
+    }
 }
 
 async function sendText(e) {
