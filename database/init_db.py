@@ -1,5 +1,10 @@
+import os
 from pathlib import Path
 import sqlite3
+from typing import Any
+
+import psycopg
+from psycopg.rows import dict_row
 
 from database.seeds.static_data import seed_static_data_if_empty
 from database.types import SqliteValue
@@ -9,6 +14,106 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "porra.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
+POSTGRES_SCHEMA_PATH = Path(__file__).resolve().parent / "schema.postgres.sql"
+DATABASE_URL = os.getenv("DATABASE_URL")
+IS_POSTGRES = bool(DATABASE_URL)
+
+
+class PostgresCursor:
+    def __init__(self, cursor: Any, lastrowid: int | None = None, prefetched_row: Any = None):
+        self._cursor = cursor
+        self.lastrowid = lastrowid
+        self._prefetched_row = prefetched_row
+
+    def fetchone(self) -> Any:
+        if self._prefetched_row is not None:
+            row = self._prefetched_row
+            self._prefetched_row = None
+            return None if row is None else CompatRow(row)
+        row = self._cursor.fetchone()
+        return None if row is None else CompatRow(row)
+
+    def fetchall(self) -> list[Any]:
+        return [CompatRow(row) for row in self._cursor.fetchall()]
+
+
+class CompatRow(dict):
+    def __getitem__(self, key: Any) -> Any:
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+class PostgresConnection:
+    def __init__(self, connection: psycopg.Connection):
+        self._connection = connection
+
+    def __enter__(self) -> "PostgresConnection":
+        self._connection.__enter__()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool | None:
+        return self._connection.__exit__(exc_type, exc, tb)
+
+    def execute(self, query: str, params: tuple[Any, ...] | list[Any] = ()) -> PostgresCursor:
+        sql = _to_postgres_query(query)
+        should_return_id = _looks_like_insert_without_returning(sql)
+        if should_return_id:
+            sql = f"{sql.rstrip().rstrip(';')} RETURNING id"
+        cursor = self._connection.execute(sql, tuple(params))
+        prefetched_row = None
+        lastrowid = None
+        if should_return_id:
+            prefetched_row = cursor.fetchone()
+            if prefetched_row is not None:
+                lastrowid = int(prefetched_row["id"])
+        return PostgresCursor(cursor, lastrowid, prefetched_row=prefetched_row)
+
+    def commit(self) -> None:
+        self._connection.commit()
+
+    def close(self) -> None:
+        self._connection.close()
+
+
+def _to_postgres_query(query: str) -> str:
+    return query.replace("?", "%s")
+
+
+def _looks_like_insert_without_returning(query: str) -> bool:
+    normalized = query.lstrip().lower()
+    return normalized.startswith("insert ") and " returning " not in normalized
+
+
+def _sync_postgres_sequences(connection: PostgresConnection) -> None:
+    tables = (
+        "users",
+        "user_sessions",
+        "groups",
+        "teams",
+        "players",
+        "matches",
+        "predictions",
+        "match_predictions",
+        "global_predictions",
+        "chat_messages",
+    )
+    for table_name in tables:
+        connection.execute(
+            """
+            SELECT setval(
+                pg_get_serial_sequence(?, 'id'),
+                COALESCE((SELECT MAX(id) FROM %s), 1),
+                (SELECT MAX(id) IS NOT NULL FROM %s)
+            )
+            """
+            % (table_name, table_name),
+            (table_name,),
+        )
+
+
+def _acquire_postgres_init_lock(connection: PostgresConnection) -> None:
+    connection.execute("SELECT pg_advisory_xact_lock(hashtext('porra_init_db'))")
 
 
 def _run_migrations(connection: sqlite3.Connection) -> None:
@@ -100,6 +205,15 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
 
 
 def init_db() -> Path:
+    if IS_POSTGRES:
+        with get_connection() as connection:
+            _acquire_postgres_init_lock(connection)
+            connection.execute(POSTGRES_SCHEMA_PATH.read_text(encoding="utf-8"))
+            seed_static_data_if_empty(connection)
+            _sync_postgres_sequences(connection)
+            connection.commit()
+        return Path("postgres://DATABASE_URL")
+
     DATA_DIR.mkdir(exist_ok=True)
 
     with sqlite3.connect(DB_PATH) as connection:
@@ -113,6 +227,10 @@ def init_db() -> Path:
 
 
 def get_connection() -> sqlite3.Connection:
+    if IS_POSTGRES:
+        assert DATABASE_URL is not None
+        return PostgresConnection(psycopg.connect(DATABASE_URL, row_factory=dict_row))
+
     connection = sqlite3.connect(DB_PATH)
     connection.execute("PRAGMA foreign_keys = ON;")
     connection.row_factory = sqlite3.Row

@@ -64,6 +64,29 @@
                    placeholder="Buscar por equipo o sede..." oninput="adminFilterSearch()">
         </div>
 
+        <div class="card card--flat" style="margin-bottom:1rem;">
+            <div class="card-body--sm">
+                <div style="margin-bottom:.75rem;">
+                    <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Debug de base de datos</div>
+                    <div style="font-size:.75rem; color:#8892A4;">Abre los endpoints de inspeccion de Render desde aqui.</div>
+                </div>
+                <div class="input-wrapper" style="margin-bottom:.75rem;">
+                    <span class="input-icon">🔐</span>
+                    <input class="form-input form-input--icon-left" type="text" id="debug-token"
+                           placeholder="DEBUG_DB_TOKEN" autocomplete="off">
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:.5rem;">
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugSummary()">Resumen BD</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('users')">Users</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('groups')">Groups</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('teams')">Teams</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('matches')">Matches</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('players')">Players</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="openDebugTable('predictions')">Predictions</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Matches list -->
         <div id="admin-matches">
             <div class="loading-spinner"><div class="spinner"></div> Cargando partidos...</div>
@@ -195,32 +218,46 @@
 {% block scripts %}
 <script>
 /* ── Admin auth (frontend only) ─────────────────────────────── */
-const ADMIN_PASSWORD = 'mundial';
 const ADMIN_KEY = 'porra_admin_unlocked';
+const ADMIN_ACCESS_TOKEN_KEY = 'porra_admin_access_token';
+const DEBUG_TOKEN_KEY = 'porra_debug_db_token';
 
 function adminLogout() {
     sessionStorage.removeItem(ADMIN_KEY);
+    sessionStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
     location.reload();
 }
 
 function checkAdminGate() {
-    if (sessionStorage.getItem(ADMIN_KEY) === '1') {
+    if (sessionStorage.getItem(ADMIN_KEY) === '1' && sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY)) {
         showPanel();
     }
 }
 
-document.getElementById('gate-form').addEventListener('submit', (e) => {
+document.getElementById('gate-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const pass = document.getElementById('admin-pass').value;
     const errEl = document.getElementById('gate-error');
-    if (pass === ADMIN_PASSWORD) {
-        sessionStorage.setItem(ADMIN_KEY, '1');
-        showPanel();
-    } else {
-        errEl.textContent = '❌ Contraseña incorrecta. Pista: ¿en qué torneo estamos?';
+    errEl.classList.add('hidden');
+
+    const res = await fetch('/auth/admin/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        errEl.textContent = err.detail || 'No se pudo validar el acceso admin.';
         errEl.classList.remove('hidden');
         document.getElementById('admin-pass').value = '';
+        return;
     }
+
+    sessionStorage.setItem(ADMIN_KEY, '1');
+    sessionStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, pass);
+    sessionStorage.setItem(DEBUG_TOKEN_KEY, pass);
+    showPanel();
 });
 
 function showPanel() {
@@ -229,7 +266,32 @@ function showPanel() {
     const user = getUser();
     const badge = document.getElementById('admin-user-badge');
     if (badge && user.name) badge.textContent = '👤 ' + user.name;
+    const debugTokenInput = document.getElementById('debug-token');
+    if (debugTokenInput) debugTokenInput.value = sessionStorage.getItem(DEBUG_TOKEN_KEY) || '';
     loadAdminMatches();
+}
+
+function getDebugToken() {
+    const input = document.getElementById('debug-token');
+    const token = (input?.value || '').trim();
+    if (!token) {
+        showToast('Introduce DEBUG_DB_TOKEN antes de abrir debug', 'error');
+        return null;
+    }
+    sessionStorage.setItem(DEBUG_TOKEN_KEY, token);
+    return token;
+}
+
+function openDebugSummary() {
+    const token = getDebugToken();
+    if (!token) return;
+    window.open(`/debug/db-summary?token=${encodeURIComponent(token)}`, '_blank');
+}
+
+function openDebugTable(tableName) {
+    const token = getDebugToken();
+    if (!token) return;
+    window.open(`/debug/db-table/${encodeURIComponent(tableName)}?token=${encodeURIComponent(token)}`, '_blank');
 }
 
 /* ── Match loading ───────────────────────────────────────────── */
@@ -476,6 +538,7 @@ document.getElementById('result-form').addEventListener('submit', async (e) => {
 
     const res = await api(`/matches/${currentMatchId}/result`, {
         method: 'PUT',
+        headers: { 'X-Admin-Token': sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '' },
         body: JSON.stringify(body)
     });
 

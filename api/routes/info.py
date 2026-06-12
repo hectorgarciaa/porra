@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from api.dependencies import get_current_user
+from api.dependencies import require_user_or_admin
 from api.schemas.matches import SetMatchResultRequest
 from database.info.world_cup import (
     getGroupOverviewById,
@@ -34,7 +34,7 @@ def get_match_by_id(match_id: int) -> JsonDict:
 def set_match_result(
     match_id: int,
     payload: SetMatchResultRequest,
-    _current_user: RowDict = Depends(get_current_user),
+    _current_user: RowDict = Depends(require_user_or_admin),
 ) -> JsonDict:
     match = processMatchResult(
         match_id,

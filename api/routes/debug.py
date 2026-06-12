@@ -2,24 +2,11 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from database.init_db import DB_PATH, get_connection, init_db
+from database.init_db import DB_PATH, IS_POSTGRES, get_connection, init_db
 from database.types import JsonDict, JsonList
 
 
 router = APIRouter(prefix="/debug", tags=["debug"])
-
-ALLOWED_TABLES = (
-    "chat_messages",
-    "global_predictions",
-    "groups",
-    "match_predictions",
-    "matches",
-    "players",
-    "predictions",
-    "sessions",
-    "teams",
-    "users",
-)
 
 
 def _require_debug_token(token: str | None) -> None:
@@ -36,21 +23,45 @@ def _require_debug_token(token: str | None) -> None:
         )
 
 
+def _get_existing_tables(connection) -> list[str]:
+    if IS_POSTGRES:
+        rows = connection.execute(
+            """
+            SELECT table_name AS name
+            FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+            """
+        ).fetchall()
+        return [str(row["name"]) for row in rows]
+
+    rows = connection.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+        ORDER BY name
+        """
+    ).fetchall()
+    return [str(row["name"]) for row in rows]
+
+
 @router.get("/db-summary")
 def get_db_summary(token: str | None = Query(default=None)) -> JsonDict:
     _require_debug_token(token)
     init_db()
 
     with get_connection() as connection:
+        existing_tables = _get_existing_tables(connection)
         table_counts = {
             table_name: int(
                 connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
             )
-            for table_name in ALLOWED_TABLES
+            for table_name in existing_tables
         }
 
     return {
-        "db_path": str(DB_PATH),
+        "db_path": "postgres:DATABASE_URL" if IS_POSTGRES else str(DB_PATH),
         "table_counts": table_counts,
     }
 
@@ -65,13 +76,13 @@ def get_db_table_rows(
     _require_debug_token(token)
     init_db()
 
-    if table_name not in ALLOWED_TABLES:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Table not allowed.",
-        )
-
     with get_connection() as connection:
+        existing_tables = _get_existing_tables(connection)
+        if table_name not in existing_tables:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Table not found.",
+            )
         total = int(connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0])
         rows = connection.execute(
             f"SELECT * FROM {table_name} LIMIT ? OFFSET ?",
