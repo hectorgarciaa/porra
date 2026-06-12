@@ -238,11 +238,43 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
         )
 
 
+def _run_postgres_migrations(connection: PostgresConnection) -> None:
+    current_schema_row = connection.execute("SELECT current_schema() AS schema_name").fetchone()
+    current_schema_name = str(current_schema_row["schema_name"]) if current_schema_row is not None else "public"
+    columns = {
+        str(row["column_name"])
+        for row in connection.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = ? AND table_name = 'global_predictions'
+            """,
+            (current_schema_name,),
+        ).fetchall()
+    }
+    if not columns:
+        return
+    new_columns = [
+        ("best_gk_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("best_young_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("revelation_team_id", "INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"),
+        ("disappointment_team_id", "INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"),
+        ("revelation_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("disappointment_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+    ]
+    for col_name, col_def in new_columns:
+        if col_name not in columns:
+            connection.execute(
+                f"ALTER TABLE global_predictions ADD COLUMN IF NOT EXISTS {col_name} {col_def}"
+            )
+
+
 def init_db() -> Path:
     if is_postgres_enabled():
         with get_connection() as connection:
             _acquire_postgres_init_lock(connection)
             connection.execute(POSTGRES_SCHEMA_PATH.read_text(encoding="utf-8"))
+            _run_postgres_migrations(connection)
             seed_static_data_if_empty(connection)
             _sync_postgres_sequences(connection)
             connection.commit()

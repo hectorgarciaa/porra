@@ -6,7 +6,7 @@ from database.init_db import get_connection, init_db
 from database.predictions.predictions import updatePredictionPoints
 from database.types import JsonDict, JsonList
 
-POINTS_EXACT_SCORE = 5
+POINTS_EXACT_SCORE = 7
 POINTS_CORRECT_SIGN = 3
 POINTS_CORRECT_GOAL_DIFFERENCE = 1
 POINTS_CORRECT_ONE_TEAM_GOALS = 1

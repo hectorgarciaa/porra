@@ -19,6 +19,7 @@ def test_pages_and_method_guards(client) -> None:
         "/my-predictions",
         "/bar",
         "/settings",
+        "/rules",
         "/inicio",
         "/clasificacion",
         "/mi-porra",
@@ -190,7 +191,7 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
     leaderboard_response = client.get("/leaderboard")
     assert leaderboard_response.status_code == 200
     user_row = next(item for item in leaderboard_response.json() if item["name"] == "alice")
-    assert user_row["points"] == 5
+    assert user_row["points"] == 7
 
     prediction_by_id = client.get(f"/predictions/{prediction_id}", headers=headers)
     assert prediction_by_id.status_code == 200
@@ -229,9 +230,13 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
 
 def test_frontend_contracts(client) -> None:
     app_js = Path("static/js/app.js").read_text(encoding="utf-8")
+    dashboard_html = Path("templates/dashboard.html").read_text(encoding="utf-8")
     admin_html = Path("templates/admin.html").read_text(encoding="utf-8")
 
     assert "/admin" in app_js
+    assert "/rules" in app_js
+    assert "!['/', '/admin', '/rules'].includes(location.pathname)" in app_js
+    assert 'href="/rules"' in dashboard_html
     assert "/auth/admin/unlock" in admin_html
     assert "/admin/media-users/backup" in admin_html
     assert "/admin/media-users/restore" in admin_html

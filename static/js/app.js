@@ -67,7 +67,7 @@ function checkAuth() {
         window.location.href = '/login';
         return false;
     }
-    if (token && isPublic && location.pathname !== '/' && location.pathname !== '/admin') {
+    if (token && isPublic && !['/', '/admin', '/rules'].includes(location.pathname)) {
         // redirect authenticated users away from login/register
         window.location.href = '/dashboard';
         return false;
