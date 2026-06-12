@@ -8,6 +8,7 @@ from database.info.world_cup import (
     getMatchOverviewById,
     getTeamOverviewById,
 )
+from database.info.matches import getMatchPredictionsSummary
 from database.info.players import getPlayersOverview
 from database.predictions.prediction_service import processMatchResult
 from database.types import JsonDict, JsonList
@@ -29,6 +30,11 @@ def get_matches() -> JsonList:
 @router.get("/matches/{match_id}")
 def get_match_by_id(match_id: int) -> JsonDict:
     return getMatchOverviewById(match_id)
+
+
+@router.get("/matches/{match_id}/predictions")
+def get_match_predictions(match_id: int) -> JsonDict:
+    return getMatchPredictionsSummary(match_id)
 
 
 @router.put("/matches/{match_id}/result")

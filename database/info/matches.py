@@ -379,3 +379,55 @@ def setMatchResult(
         ).fetchone()
 
     return _serialize_match(updated_match)
+
+
+def getMatchPredictionsSummary(match_id: int) -> dict:
+    init_db()
+
+    with get_connection() as connection:
+        match = connection.execute(
+            "SELECT id, local_team_id, away_team_id FROM matches WHERE id = ?",
+            (match_id,),
+        ).fetchone()
+        if match is None:
+            raise MatchNotFoundError(f"No existe el partido con id {match_id}.")
+
+        local_id = int(match["local_team_id"])
+        away_id = int(match["away_team_id"])
+
+        pred_rows = connection.execute(
+            """
+            SELECT mp.local_goals, mp.away_goals, u.name AS user_name, u.img AS user_img
+            FROM match_predictions mp
+            JOIN predictions p ON p.id = mp.prediction_id
+            JOIN users u ON u.id = p.player_id
+            WHERE mp.match_id = ?
+            ORDER BY u.name
+            """,
+            (match_id,),
+        ).fetchall()
+
+    predictions = []
+    votes = {"local": 0, "draw": 0, "away": 0}
+    for row in pred_rows:
+        local = int(row["local_goals"])
+        away = int(row["away_goals"])
+        predictions.append({
+            "user_name": row["user_name"],
+            "user_img": row["user_img"],
+            "local_goals": local,
+            "away_goals": away,
+        })
+        if local > away:
+            votes["local"] += 1
+        elif away > local:
+            votes["away"] += 1
+        else:
+            votes["draw"] += 1
+
+    return {
+        "match_id": match_id,
+        "predictions": predictions,
+        "votes": votes,
+        "total": len(predictions),
+    }
