@@ -151,3 +151,63 @@ def restore_user_media_backup(backup_filename: str | None = None) -> dict[str, o
         "backup_path": str(backup_path),
         "restored_files": restored_files,
     }
+
+
+def restore_user_media_backup_from_upload(uploaded_file: UploadFile) -> dict[str, object]:
+    ensure_media_dirs()
+    resolved_user_media_dir = USER_MEDIA_DIR.resolve()
+
+    content = uploaded_file.read()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo esta vacio.",
+        )
+
+    filename = (uploaded_file.filename or "").lower()
+    if not filename.endswith(".zip"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo debe ser un ZIP.",
+        )
+
+    import io
+    zip_buffer = io.BytesIO(content)
+
+    try:
+        zip_file = ZipFile(zip_buffer, "r")
+        _ = zip_file.infolist()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo no es un ZIP valido.",
+        )
+
+    for child in USER_MEDIA_DIR.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+    restored_files = 0
+    with zip_file:
+        for member in zip_file.infolist():
+            if member.is_dir():
+                continue
+
+            destination = (USER_MEDIA_DIR / member.filename).resolve()
+            if resolved_user_media_dir not in destination.parents:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El backup contiene rutas no validas.",
+                )
+
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with zip_file.open(member, "r") as source, destination.open("wb") as target:
+                shutil.copyfileobj(source, target)
+            restored_files += 1
+
+    return {
+        "restored_files": restored_files,
+        "message": f"Backup restaurado: {restored_files} archivos.",
+    }

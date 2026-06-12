@@ -89,11 +89,13 @@
             <div class="card-body--sm">
                 <div style="margin-bottom:.75rem;">
                     <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:.95rem;">Backup de fotos</div>
-                    <div style="font-size:.75rem; color:#8892A4;">Descarga un zip de media/users o restaura el ultimo backup guardado.</div>
+                    <div style="font-size:.75rem; color:#8892A4;">Descarga un zip de media/users o restaura desde un archivo.</div>
                 </div>
                 <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="downloadUsersMediaBackup()">Descargar backup</button>
-                    <button type="button" class="btn btn-ghost btn--sm" onclick="restoreUsersMediaBackup()">Restaurar ultimo backup</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="downloadUsersMediaBackup()">⬇️ Descargar backup</button>
+                    <button type="button" class="btn btn-ghost btn--sm" onclick="restoreUsersMediaBackup()">🔄 Restaurar último</button>
+                    <button type="button" class="btn btn-ghost btn--sm btn--danger" onclick="document.getElementById('media-restore-input').click()">⬆️ Subir y restaurar</button>
+                    <input type="file" id="media-restore-input" accept=".zip" style="display:none;" onchange="restoreUsersMediaFromUpload(this.files[0])">
                 </div>
                 <div class="input-wrapper">
                     <span class="input-icon">🗂️</span>
@@ -626,6 +628,41 @@ async function restoreUsersMediaBackup() {
     const backupFilenameInput = document.getElementById('backup-filename');
     if (backupFilenameInput && data.backup_filename) backupFilenameInput.value = data.backup_filename;
     showToast(`Backup restaurado: ${data.restored_files} archivos`, 'success');
+}
+
+async function restoreUsersMediaFromUpload(file) {
+    if (!file) return;
+
+    const adminToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) || '';
+    if (!adminToken) {
+        showToast('Sesion admin no disponible', 'error');
+        return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+        showToast('El archivo debe ser un ZIP', 'error');
+        return;
+    }
+
+    showToast('⏳ Restaurando backup de fotos...', 'info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('/admin/media-users/restore/upload', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': adminToken },
+        body: formData
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || 'No se pudo restaurar', 'error');
+        return;
+    }
+
+    const data = await res.json();
+    showToast(`✅ ${data.message}`, 'success');
 }
 
 async function downloadDbBackup() {

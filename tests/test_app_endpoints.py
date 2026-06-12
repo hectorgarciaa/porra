@@ -61,21 +61,16 @@ def test_auth_users_chat_and_info_endpoints(client, registered_user) -> None:
     groups = groups_response.json()
     assert len(groups) == 12
 
-    group_response = client.get(f"/groups/{groups[0]['id']}")
-    assert group_response.status_code == 200
-    group = group_response.json()
-    assert len(group["standings"]) == 4
-    assert len(group["matches"]) == 6
-
     matches_response = client.get("/matches")
     assert matches_response.status_code == 200
-    assert len(matches_response.json()) > 0
+    matches = matches_response.json()
+    assert len(matches) > 0
 
-    match_response = client.get(f"/matches/{group['matches'][0]['id']}")
+    match_response = client.get(f"/matches/{matches[0]['id']}")
     assert match_response.status_code == 200
-    assert match_response.json()["id"] == group["matches"][0]["id"]
+    assert match_response.json()["id"] == matches[0]["id"]
 
-    team_response = client.get(f"/teams/{group['standings'][0]['team']['id']}")
+    team_response = client.get(f"/teams/{matches[0]['local_team']['id']}")
     assert team_response.status_code == 200
     assert len(team_response.json()["players"]) > 0
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from database.info.groups import GroupNotFoundError
 from database.info.matches import MatchNotFoundError
 from database.info.teams import TeamNotFoundError
 from database.init_db import get_connection, init_db
@@ -246,60 +245,6 @@ def getMatchesOverview() -> JsonList:
         matches.append(match)
 
     return matches
-
-
-def getGroupOverviewById(group_id: int) -> JsonDict:
-    init_db()
-
-    with get_connection() as connection:
-        group_row = connection.execute(
-            """
-            SELECT id, letter
-            FROM groups
-            WHERE id = ?
-            """,
-            (group_id,),
-        ).fetchone()
-        if group_row is None:
-            raise GroupNotFoundError(f"No existe el grupo con id {group_id}.")
-
-        match_rows = connection.execute(
-            """
-            SELECT
-                matches.id,
-                matches.stage,
-                matches.group_id,
-                matches.local_team_id,
-                matches.away_team_id,
-                matches.kickoff_at,
-                matches.venue,
-                matches.local_goals,
-                matches.away_goals,
-                matches.winner_id,
-                matches.has_extra_time,
-                matches.has_penalties,
-                matches.local_penalties,
-                matches.away_penalties,
-                local_team.name AS local_team_name,
-                local_team.fifa_slug AS local_team_slug,
-                local_team.group_id AS local_team_group_id,
-                away_team.name AS away_team_name,
-                away_team.fifa_slug AS away_team_slug,
-                away_team.group_id AS away_team_group_id
-            FROM matches
-            INNER JOIN teams AS local_team ON local_team.id = matches.local_team_id
-            INNER JOIN teams AS away_team ON away_team.id = matches.away_team_id
-            WHERE matches.group_id = ?
-            ORDER BY matches.kickoff_at, matches.id
-            """,
-            (group_id,),
-        ).fetchall()
-
-        return {
-            **_serialize_group(group_row),
-            "standings": _build_group_standings(connection, group_id),
-            "matches": [_serialize_match_summary(row) for row in match_rows],
-        }
 
 
 def getMatchOverviewById(match_id: int) -> JsonDict:

@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends
 from api.dependencies import require_admin_token
 from api.schemas.matches import SetMatchResultRequest
 from database.info.world_cup import (
-    getGroupOverviewById,
     getGroupsOverview,
     getMatchesOverview,
     getMatchOverviewById,
@@ -20,11 +19,6 @@ router = APIRouter(tags=["info"])
 @router.get("/groups")
 def get_groups() -> JsonList:
     return getGroupsOverview()
-
-
-@router.get("/groups/{group_id}")
-def get_group_by_id(group_id: int) -> JsonDict:
-    return getGroupOverviewById(group_id)
 
 
 @router.get("/matches")

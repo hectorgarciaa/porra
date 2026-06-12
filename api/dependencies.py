@@ -41,31 +41,3 @@ def require_admin_token(x_admin_token: str | None = Header(default=None)) -> str
             detail="Necesitas un token de admin valido.",
         )
     return x_admin_token
-
-
-def require_user_or_admin(
-    authorization: str | None = Header(default=None),
-    x_admin_token: str | None = Header(default=None),
-) -> RowDict:
-    if not isinstance(authorization, str):
-        authorization = None
-    if not isinstance(x_admin_token, str):
-        x_admin_token = None
-
-    if authorization:
-        return get_current_user(get_bearer_token(authorization))
-
-    expected_admin_token = os.getenv("ADMIN_PANEL_PASSWORD") or os.getenv("DEBUG_DB_TOKEN")
-    if expected_admin_token and x_admin_token and hmac.compare_digest(x_admin_token, expected_admin_token):
-        return {
-            "id": 0,
-            "name": "admin",
-            "img": None,
-            "created_at": "",
-            "updated_at": "",
-        }
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Necesitas iniciar sesion o aportar un token de admin valido.",
-    )

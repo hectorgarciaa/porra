@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from api.dependencies import get_current_user
-from api.media import MAX_IMAGE_SIZE_BYTES, USER_MEDIA_DIR, ensure_media_dirs
+from api import media as media_module
 from database.info.chat import get_messages, send_message
 from database.types import JsonDict, JsonList, RowDict
 from secrets import token_hex
@@ -29,7 +29,7 @@ async def post_image(
     text: str = Form(default=""),
     current_user: RowDict = Depends(get_current_user),
 ) -> JsonDict:
-    ensure_media_dirs()
+    media_module.ensure_media_dirs()
 
     content_type = (image.content_type or "").lower().strip()
     if content_type not in ("image/jpeg", "image/png", "image/webp"):
@@ -44,7 +44,7 @@ async def post_image(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La imagen no puede estar vacia.",
         )
-    if len(content) > MAX_IMAGE_SIZE_BYTES:
+    if len(content) > media_module.MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La imagen supera el maximo de 5 MB.",
@@ -52,7 +52,7 @@ async def post_image(
 
     ext = ".jpg" if "jpeg" in content_type else ".png" if "png" in content_type else ".webp"
     filename = f"chat_{token_hex(8)}{ext}"
-    file_path = USER_MEDIA_DIR / filename
+    file_path = media_module.USER_MEDIA_DIR / filename
     file_path.write_bytes(content)
 
     image_url = f"/media/users/{filename}"
