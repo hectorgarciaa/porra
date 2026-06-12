@@ -22,10 +22,13 @@
     <div id="tab-ranking" class="tab-content active">
 
         <!-- Filter chips -->
-        <div class="chips-row" style="margin-bottom:1rem;">
+        <div class="chips-row" style="margin-bottom:.5rem;">
             <button class="chip active" data-filter="general" onclick="setFilter(this, 'general')">General</button>
             <button class="chip" data-filter="perfect" onclick="setFilter(this, 'perfect')">Resultado perfecto</button>
             <button class="chip" data-filter="cunado" onclick="setFilter(this, 'cunado')">Cuñado experto</button>
+        </div>
+        <div id="filter-explanation" style="font-size:.7rem; color:#8892A4; margin-bottom:.75rem;">
+            Por puntos totales (plenos + ganadores + bonus)
         </div>
 
         <!-- Ranking card -->
@@ -78,6 +81,12 @@ function setFilter(btn, filter) {
     document.querySelectorAll('.chips-row .chip').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     currentFilter = filter;
+    const explanations = {
+        general: 'Por puntos totales (plenos + ganadores + bonus)',
+        perfect: 'Por número de marcadores exactos clavados',
+        cunado: 'Por número de ganadores acertados (aunque falles el marcador)',
+    };
+    document.getElementById('filter-explanation').textContent = explanations[filter] || '';
     renderRanking(rankingData, filter);
 }
 
@@ -88,7 +97,7 @@ function setRange(btn, range) {
 
 /* ── Badges ───────────────────────────────────────────────── */
 const BADGES = [
-    { label: '👑 Líder moral',     color: '#C9A227', bg: '#FFF8E0' },
+    { label: '🍺 El capo',          color: '#C9A227', bg: '#FFF8E0' },
     { label: '🎯 Rey del pleno',   color: '#27AE60', bg: '#E8F8F0' },
     { label: '🧠 Cuñado con datos',color: '#2B7FE8', bg: '#E8F2FF' },
     { label: '😴 Vive de rentas',  color: '#8892A4', bg: '#F0F2F5' },
@@ -115,13 +124,14 @@ function renderRanking(data, filter) {
         return `
         <div class="rank-item" style="${isMe ? 'background:var(--coral-light);' : ''}">
             <span class="rank-pos rank-pos--${i+1}">${medals[i] || (i+1)}</span>
+            ${u.img ? `<img src="${u.img}" style="width:2rem;height:2rem;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : `<span style="width:2rem;height:2rem;border-radius:50%;background:var(--sand-dark);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#8892A4;flex-shrink:0;">${(u.name||'?')[0].toUpperCase()}</span>`}
             <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span class="rank-name">${u.name}${isMe ? ' <span style="color:var(--coral);font-size:.7rem;">(tú)</span>' : ''}</span>
                     ${i < 4 ? `<span style="font-size:.625rem; font-weight:700; padding:.1rem .5rem; border-radius:9999px; background:${badge.bg}; color:${badge.color};">${badge.label}</span>` : ''}
                 </div>
                 <div style="font-size:.7rem; color:#8892A4; margin-top:.15rem;">
-                    ${u.exact_results !== undefined ? `🎯 ${u.exact_results} plenos` : ''}
+                    ${u.perfect_results !== undefined ? `🎯 ${u.perfect_results} plenos` : ''}
                     ${u.exact_winners !== undefined ? ` · ✅ ${u.exact_winners} ganadores` : ''}
                 </div>
             </div>
@@ -165,7 +175,7 @@ async function loadEvolution() {
         labels.push((m.local_team?.name || '?').substring(0,3) + '-' + (m.away_team?.name || '?').substring(0,3));
         for (const s of ev.scores) {
             const uid = s.user.id;
-            if (!users[uid]) users[uid] = { name: s.user.name, points: [] };
+            if (!users[uid]) users[uid] = { name: s.user.name, img: s.user.img, points: [] };
             users[uid].points.push(s.points_total);
         }
     }
@@ -220,7 +230,10 @@ async function loadEvolution() {
 
     legEl.innerHTML = userList.map((u, ci) => {
         const color = CHART_COLORS[ci % CHART_COLORS.length];
-        return `<div class="evo-legend__item"><div class="evo-legend__dot" style="background:${color};"></div><span>${u.name}</span></div>`;
+        const avatar = u.img
+            ? `<img src="${u.img}" style="width:1.25rem;height:1.25rem;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+            : `<span style="width:1.25rem;height:1.25rem;border-radius:50%;background:var(--sand-dark);display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#8892A4;flex-shrink:0;">${(u.name||'?')[0].toUpperCase()}</span>`;
+        return `<div class="evo-legend__item"><div class="evo-legend__dot" style="background:${color};"></div>${avatar}<span>${u.name}</span></div>`;
     }).join('');
 }
 

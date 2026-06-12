@@ -4,7 +4,8 @@
 {% block topbar %}
 <header class="app-header">
     <div style="display:flex; align-items:center; gap:0.75rem;">
-        <div class="avatar-placeholder avatar-placeholder--md" id="dash-avatar-placeholder" data-user-initial>?</div>
+        <img id="dash-avatar-img" class="avatar-placeholder avatar-placeholder--md" src="" alt="" style="display:none; border-radius:50%; object-fit:cover;" onerror="this.style.display='none';document.getElementById('dash-avatar-placeholder').style.display='flex';">
+        <div class="avatar-placeholder avatar-placeholder--md" id="dash-avatar-placeholder" data-user-initial style="display:flex;">?</div>
         <div>
             <div style="font-family:'Outfit',sans-serif; font-weight:700; font-size:1rem; color:#1A1A2E;" id="dash-greeting">
                 ¡Hola!
@@ -82,6 +83,12 @@
     if (user.name) {
         document.getElementById('dash-greeting').textContent = '¡Hola, ' + user.name + '!';
         document.getElementById('dash-avatar-placeholder').textContent = user.name[0].toUpperCase();
+        if (user.img) {
+            const imgEl = document.getElementById('dash-avatar-img');
+            imgEl.src = user.img;
+            imgEl.style.display = 'block';
+            document.getElementById('dash-avatar-placeholder').style.display = 'none';
+        }
     }
 })();
 
@@ -96,6 +103,7 @@ async function loadMiniRanking() {
     el.innerHTML = top.map((u, i) => `
         <div class="rank-item" style="${u.name === user.name ? 'background:var(--coral-light);border-radius:var(--r-sm);' : ''}">
             <span class="rank-pos rank-pos--${i+1}" style="font-size:1.1rem;">${medals[i]}</span>
+            ${u.img ? `<img src="${u.img}" style="width:1.75rem;height:1.75rem;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : `<span style="width:1.75rem;height:1.75rem;border-radius:50%;background:var(--sand-dark);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#8892A4;flex-shrink:0;">${(u.name||'?')[0].toUpperCase()}</span>`}
             <span class="rank-name">${u.name}${u.name === user.name ? ' <span style="font-size:.7rem;color:var(--coral);">(tú)</span>' : ''}</span>
             <span class="rank-points">${u.points} pts</span>
         </div>

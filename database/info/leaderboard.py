@@ -16,7 +16,26 @@ def getLeaderboard() -> JsonList:
                 users.name,
                 users.img,
                 COALESCE(predictions.points, 0) AS points,
-                predictions.id AS prediction_id
+                predictions.id AS prediction_id,
+                COALESCE((
+                    SELECT COUNT(*)
+                    FROM match_predictions mp
+                    JOIN matches m ON m.id = mp.match_id AND m.local_goals IS NOT NULL
+                    WHERE mp.prediction_id = predictions.id
+                    AND mp.local_goals = m.local_goals
+                    AND mp.away_goals = m.away_goals
+                ), 0) AS perfect_results,
+                COALESCE((
+                    SELECT COUNT(*)
+                    FROM match_predictions mp
+                    JOIN matches m ON m.id = mp.match_id AND m.local_goals IS NOT NULL
+                    WHERE mp.prediction_id = predictions.id
+                    AND (
+                        (mp.local_goals > mp.away_goals AND m.local_goals > m.away_goals) OR
+                        (mp.local_goals < mp.away_goals AND m.local_goals < m.away_goals) OR
+                        (mp.local_goals = mp.away_goals AND m.local_goals = m.away_goals)
+                    )
+                ), 0) AS exact_winners
             FROM users
             LEFT JOIN predictions ON predictions.player_id = users.id
             ORDER BY points DESC, lower(users.name) ASC, users.id ASC
@@ -30,6 +49,8 @@ def getLeaderboard() -> JsonList:
             "img": row["img"],
             "points": int(row["points"]),
             "prediction_id": row["prediction_id"],
+            "perfect_results": int(row["perfect_results"]),
+            "exact_winners": int(row["exact_winners"]),
         }
         for row in rows
     ]

@@ -785,21 +785,29 @@ function renderAdminMatches(matches) {
         }
         const played = m.local_goals !== null;
         const time = new Date(m.kickoff_at).toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'});
+        const localFlag = m.local_team?.fifa_slug ? getFlagUrl(m.local_team.fifa_slug) : '';
+        const awayFlag = m.away_team?.fifa_slug ? getFlagUrl(m.away_team.fifa_slug) : '';
         html += `
         <div class="card card--flat" style="margin-bottom:.625rem;">
             <div class="card-body--sm">
-                <div style="display:flex; align-items:center; gap:.75rem;">
+                <div style="display:flex; align-items:center; gap:.5rem;">
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
                             <span class="badge badge--gray" style="font-size:.6rem;">G${m.group_letter}</span>
                             ${played ? '<span class="badge badge--green">✅ Resultado</span>' : `<span class="badge badge--gold">⏳ ${time}</span>`}
                         </div>
-                        <div style="display:flex; align-items:center; gap:.625rem; margin-top:.375rem;">
-                            <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.9375rem; flex:1; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.local_team?.name || '?'}</span>
-                            <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.125rem; padding:.2rem .5rem; background:var(--sand-dark); border-radius:.5rem; min-width:3rem; text-align:center; flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:.375rem; margin-top:.375rem;">
+                            <div style="flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:flex-end; gap:.25rem;">
+                                ${localFlag ? `<img src="${localFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;">${m.local_team?.name || '?'}</span>
+                            </div>
+                            <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; padding:.15rem .4rem; background:var(--sand-dark); border-radius:.5rem; text-align:center; flex-shrink:0;">
                                 ${played ? m.local_goals + ' – ' + m.away_goals : 'vs'}
                             </span>
-                            <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.9375rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.away_team?.name || '?'}</span>
+                            <div style="flex:1 1 0; min-width:0; display:flex; align-items:center; gap:.25rem;">
+                                <span style="font-family:'Outfit',sans-serif; font-weight:700; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">${m.away_team?.name || '?'}</span>
+                                ${awayFlag ? `<img src="${awayFlag}" style="width:1.125rem; height:.75rem; object-fit:cover; border-radius:1px; flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+                            </div>
                         </div>
                         ${m.venue ? `<div style="font-size:.7rem; color:#8892A4; margin-top:.25rem;">📍 ${m.venue}</div>` : ''}
                     </div>
