@@ -4,10 +4,13 @@ import sqlite3
 from typing import Any
 
 import psycopg
+from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
 from database.seeds.static_data import seed_static_data_if_empty
 from database.types import SqliteValue
+
+load_dotenv()
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
