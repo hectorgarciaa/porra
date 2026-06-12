@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Reglas — La Porra del Bar{% endblock %}
+
+{% block content %}
+<div class="page-content page-content--padded-top">
+
+    <div style="margin-bottom:1.25rem;">
+        <h1 style="font-family:'Outfit',sans-serif; font-weight:900; font-size:1.5rem; color:#1A1A2E;">📋 Cómo se puntúa</h1>
+        <p style="font-size:0.8125rem; color:#8892A4; margin-top:0.25rem;">Para que luego no haya lloros</p>
+    </div>
+
+    <!-- Predicción de partidos -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; margin-bottom:.75rem;">⚽ Predicción de partidos</div>
+
+            <div style="display:flex; flex-direction:column; gap:.5rem;">
+                <div class="stat-row">
+                    <div class="stat-card" style="background:var(--green-light); flex:1;">
+                        <div class="stat-card__value" style="color:var(--green);">🎯 5 pts</div>
+                        <div class="stat-card__label">Resultado exacto</div>
+                    </div>
+                    <div class="stat-card" style="background:var(--blue-light); flex:1;">
+                        <div class="stat-card__value" style="color:var(--blue);">✅ 3 pts</div>
+                        <div class="stat-card__label">Ganador o empate</div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-card" style="background:var(--sand-dark); flex:1;">
+                        <div class="stat-card__value" style="color:var(--text-mid);">📊 1 pt</div>
+                        <div class="stat-card__label">Misma diferencia de goles</div>
+                    </div>
+                    <div class="stat-card" style="background:var(--sand-dark); flex:1;">
+                        <div class="stat-card__value" style="color:var(--text-mid);">⚽ 1 pt</div>
+                        <div class="stat-card__label">Goles exactos de un equipo</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:1rem; font-size:.8125rem; color:#555E72;">
+                <strong>⚠️ Importante:</strong> si aciertas el marcador exacto (5 pts), no se suman los bonus. Los bonus solo aplican cuando <em>no</em> clavas el resultado.
+            </div>
+        </div>
+    </div>
+
+    <!-- Ejemplos -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; margin-bottom:.75rem;">🧪 Ejemplos (resultado real: 2–1)</div>
+
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:.8125rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left; padding:.4rem .5rem; color:#8892A4;">Tu pronóstico</th>
+                            <th style="text-align:center; padding:.4rem .5rem; color:#8892A4;">Ganador</th>
+                            <th style="text-align:center; padding:.4rem .5rem; color:#8892A4;">Diferencia</th>
+                            <th style="text-align:center; padding:.4rem .5rem; color:#8892A4;">Gol exacto</th>
+                            <th style="text-align:right; padding:.4rem .5rem; color:#8892A4;">Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem; font-weight:700;">2 – 1</td><td style="text-align:center;">🎯</td><td style="text-align:center;">—</td><td style="text-align:center;">—</td><td style="text-align:right; font-weight:800; color:var(--green);">5</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem;">3 – 1</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:right; font-weight:800;">5</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem;">2 – 0</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:right; font-weight:800;">4</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem;">3 – 2</td><td style="text-align:center;">✅</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:right; font-weight:800;">4</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem;">1 – 0</td><td style="text-align:center;">✅</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:right; font-weight:800;">3</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:.35rem .5rem;">0 – 2</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:right; font-weight:800; color:var(--coral);">0</td></tr>
+                        <tr><td style="padding:.35rem .5rem;">0 – 1</td><td style="text-align:center;">❌</td><td style="text-align:center;">❌</td><td style="text-align:center;">✅</td><td style="text-align:right; font-weight:800;">1</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Predicción global -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; margin-bottom:.75rem;">🌍 Predicción global</div>
+            <p style="font-size:.8125rem; color:#555E72; line-height:1.5;">
+                Se puede rellenar hasta el <strong>23 de junio de 2026</strong>. Predices campeón, subcampeón, 3º, 4º, mejor jugador, máximo goleador, máximo asistente, más amarillas y más rojas del torneo.
+            </p>
+            <p style="font-size:.75rem; color:#8892A4; margin-top:.5rem; font-style:italic;">
+                ⚠️ La puntuación de la predicción global se añadirá al final del mundial. Los puntos actuales reflejan solo los partidos. Todavía hay que decidir los puntos que se otorgan por cada acierto de la predicción global.
+            </p>
+        </div>
+    </div>
+
+    <!-- Clasificación -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; margin-bottom:.75rem;">🏆 Clasificación</div>
+            <p style="font-size:.8125rem; color:#555E72; line-height:1.5;">
+                El ranking se puede ordenar por:
+            </p>
+            <ul style="font-size:.8125rem; color:#555E72; padding-left:1.25rem; line-height:1.8;">
+                <li><strong>General:</strong> puntos totales (suma de todo)</li>
+                <li><strong>Resultado perfecto:</strong> número de marcadores exactos clavados</li>
+                <li><strong>Cuñado experto:</strong> número de ganadores acertados</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Bote -->
+    <div class="card card--flat" style="margin-bottom:1rem;">
+        <div class="card-body">
+            <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:1.0625rem; margin-bottom:.75rem;">💰 El bote</div>
+            <p style="font-size:.8125rem; color:#555E72; line-height:1.5;">
+                <strong>10 € por persona.</strong> Reparto del bote:
+            </p>
+            <div class="stat-row" style="margin-top:.75rem;">
+                <div class="stat-card" style="background:var(--green-light); flex:1;">
+                    <div class="stat-card__value" style="color:var(--green);">🥇 60%</div>
+                    <div class="stat-card__label">1er puesto</div>
+                </div>
+                <div class="stat-card" style="background:var(--blue-light); flex:1;">
+                    <div class="stat-card__value" style="color:var(--blue);">🥈 30%</div>
+                    <div class="stat-card__label">2º puesto</div>
+                </div>
+                <div class="stat-card" style="background:var(--coral-light); flex:1;">
+                    <div class="stat-card__value" style="color:var(--coral);">🥉 10%</div>
+                    <div class="stat-card__label">3er puesto</div>
+                </div>
+            </div>
+            <p style="font-size:.7rem; color:#8892A4; margin-top:.75rem; font-style:italic;">
+                * Estos porcentajes y el precio se pueden negociar entre todos. Esto es orientativo.
+            </p>
+        </div>
+    </div>
+
+    <div class="fun-banner" style="margin-bottom:2rem;">
+        🍺 "Aquí se viene llorado de casa y se sale campeón"
+    </div>
+
+</div>
+{% endblock %}

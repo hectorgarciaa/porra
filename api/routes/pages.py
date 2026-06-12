@@ -91,3 +91,8 @@ async def admin_page(request: Request) -> HTMLResponse:
 @router.get("/prediction/{prediction_id}", response_class=HTMLResponse)
 async def view_prediction(request: Request) -> HTMLResponse:
     return _render("view_prediction.html", request)
+
+
+@router.get("/rules", response_class=HTMLResponse)
+async def rules(request: Request) -> HTMLResponse:
+    return _render("rules.html", request)

@@ -44,13 +44,13 @@
                     </div>
                 </div>
 
-                <!-- Remember + forgot -->
+                <!-- Remember -->
                 <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.8125rem;">
                     <label style="display:flex; align-items:center; gap:0.375rem; color:#555E72; cursor:pointer;">
                         <input type="checkbox" id="remember-me" name="remember" style="accent-color:#E85D3A;">
                         Recuérdame
                     </label>
-                    <a href="#" style="color:#2B7FE8; font-weight:600; font-size:0.8125rem;">¿Olvidaste la contraseña?</a>
+                    <a href="#" onclick="showToast('Pídesela al admin del bar, él la tiene 😎', 'info', 4000); return false;" style="color:#2B7FE8; font-weight:600; font-size:0.8125rem;">¿Olvidaste la contraseña?</a>
                 </div>
 
                 <!-- Error -->
@@ -70,8 +70,8 @@
                         Únete al bar
                     </a>
                 </p>
-                <p style="font-size:0.75rem; color:#8892A4; margin-top:0.5rem; font-style:italic;">
-                    P.D. Aquí no sale la misma de "se me olvidó" 😎
+                <p style="font-size:0.75rem; color:#8892A4; margin-top:0.5rem;">
+                    <a href="/rules" style="color:#2B7FE8; font-weight:600;">📋 ¿Cómo se puntúa?</a>
                 </p>
             </div>
         </div>
