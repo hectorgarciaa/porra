@@ -1,6 +1,7 @@
 from pathlib import Path
 import sqlite3
 
+from database.seeds.static_data import seed_static_data_if_empty
 from database.types import SqliteValue
 
 
@@ -105,6 +106,7 @@ def init_db() -> Path:
         connection.execute("PRAGMA foreign_keys = ON;")
         connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         _run_migrations(connection)
+        seed_static_data_if_empty(connection)
         connection.commit()
 
     return DB_PATH

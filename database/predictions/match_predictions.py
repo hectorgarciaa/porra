@@ -59,6 +59,8 @@ def _validate_match_prediction_outcome(
     if has_penalties:
         if local_goals != away_goals:
             raise ValueError("Si predices penaltis, el marcador tras juego/prorroga debe acabar en empate.")
+        if winner_team_id is None:
+            raise ValueError("Si predices penaltis, debes indicar el equipo ganador.")
         return winner_team_id
 
     if local_goals > away_goals:
@@ -71,7 +73,7 @@ def _validate_match_prediction_outcome(
     if winner_team_id is not None and winner_team_id != inferred_winner_team_id:
         raise ValueError("winner_team_id no coincide con el marcador predicho.")
 
-    if stage != "groups" and local_goals == away_goals and winner_team_id is not None:
+    if stage != "groups" and local_goals == away_goals:
         raise ValueError("Si el marcador predicho acaba en empate en eliminatoria, debes marcar penaltis.")
 
     return inferred_winner_team_id if winner_team_id is None else winner_team_id
