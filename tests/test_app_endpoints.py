@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import api.media as media
+import database.init_db as init_db
 from tests.conftest import set_future_match_kickoff
 
 
@@ -281,6 +282,23 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
 
     restored_files = [path for path in media.USER_MEDIA_DIR.rglob("*") if path.is_file()]
     assert restored_files
+
+
+def test_postgres_migrates_missing_match_event_columns(client) -> None:
+    if not init_db.is_postgres_enabled():
+        return
+
+    with init_db.get_connection() as connection:
+        connection.execute("ALTER TABLE matches DROP COLUMN IF EXISTS own_goal_ids")
+        connection.commit()
+
+    init_db.init_db()
+
+    match_response = client.get("/matches/1")
+    assert match_response.status_code == 200
+    payload = match_response.json()
+    assert "own_goals" in payload
+    assert payload["own_goals"] == []
 
 
 def test_frontend_contracts(client) -> None:

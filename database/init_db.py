@@ -245,29 +245,87 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
 def _run_postgres_migrations(connection: PostgresConnection) -> None:
     current_schema_row = connection.execute("SELECT current_schema() AS schema_name").fetchone()
     current_schema_name = str(current_schema_row["schema_name"]) if current_schema_row is not None else "public"
-    columns = {
-        str(row["column_name"])
-        for row in connection.execute(
-            """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = ? AND table_name = 'global_predictions'
-            """,
-            (current_schema_name,),
-        ).fetchall()
-    }
-    if not columns:
+    table_columns: dict[str, set[str]] = {}
+
+    def get_columns(table_name: str) -> set[str]:
+        if table_name not in table_columns:
+            table_columns[table_name] = {
+                str(row["column_name"])
+                for row in connection.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = ? AND table_name = ?
+                    """,
+                    (current_schema_name, table_name),
+                ).fetchall()
+            }
+        return table_columns[table_name]
+
+    match_columns = get_columns("matches")
+    if match_columns:
+        new_match_columns = [
+            ("scorer_ids", "TEXT NOT NULL DEFAULT '[]'"),
+            ("own_goal_ids", "TEXT NOT NULL DEFAULT '[]'"),
+            ("assists_ids", "TEXT NOT NULL DEFAULT '[]'"),
+            ("yellow_card_ids", "TEXT NOT NULL DEFAULT '[]'"),
+            ("red_card_ids", "TEXT NOT NULL DEFAULT '[]'"),
+            ("has_extra_time", "INTEGER NOT NULL DEFAULT 0 CHECK (has_extra_time IN (0, 1))"),
+            ("has_penalties", "INTEGER NOT NULL DEFAULT 0 CHECK (has_penalties IN (0, 1))"),
+            ("local_penalties", "INTEGER"),
+            ("away_penalties", "INTEGER"),
+        ]
+        for col_name, col_def in new_match_columns:
+            if col_name not in match_columns:
+                connection.execute(
+                    f"ALTER TABLE matches ADD COLUMN IF NOT EXISTS {col_name} {col_def}"
+                )
+
+    player_columns = get_columns("players")
+    if player_columns:
+        new_player_columns = [
+            ("num_goals", "INTEGER NOT NULL DEFAULT 0"),
+            ("num_assists", "INTEGER NOT NULL DEFAULT 0"),
+            ("num_yellow_cards", "INTEGER NOT NULL DEFAULT 0"),
+            ("num_red_cards", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+        for col_name, col_def in new_player_columns:
+            if col_name not in player_columns:
+                connection.execute(
+                    f"ALTER TABLE players ADD COLUMN IF NOT EXISTS {col_name} {col_def}"
+                )
+
+    match_prediction_columns = get_columns("match_predictions")
+    if match_prediction_columns:
+        new_match_prediction_columns = [
+            ("winner_team_id", "INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"),
+            ("has_extra_time", "INTEGER NOT NULL DEFAULT 0 CHECK (has_extra_time IN (0, 1))"),
+            ("has_penalties", "INTEGER NOT NULL DEFAULT 0 CHECK (has_penalties IN (0, 1))"),
+        ]
+        for col_name, col_def in new_match_prediction_columns:
+            if col_name not in match_prediction_columns:
+                connection.execute(
+                    f"ALTER TABLE match_predictions ADD COLUMN IF NOT EXISTS {col_name} {col_def}"
+                )
+
+    global_prediction_columns = get_columns("global_predictions")
+    if not global_prediction_columns:
         return
     new_columns = [
+        ("best_player_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
         ("best_gk_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
         ("best_young_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("max_scorer_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("max_assister_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("max_yellow_cards_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
+        ("max_red_cards_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
         ("revelation_team_id", "INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"),
         ("disappointment_team_id", "INTEGER DEFAULT NULL REFERENCES teams(id) ON DELETE SET NULL"),
         ("revelation_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
         ("disappointment_player_id", "INTEGER DEFAULT NULL REFERENCES players(id) ON DELETE SET NULL"),
     ]
     for col_name, col_def in new_columns:
-        if col_name not in columns:
+        if col_name not in global_prediction_columns:
             connection.execute(
                 f"ALTER TABLE global_predictions ADD COLUMN IF NOT EXISTS {col_name} {col_def}"
             )
