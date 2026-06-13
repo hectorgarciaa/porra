@@ -69,6 +69,7 @@ def _validate_kickoff_at(kickoff_at: str) -> str:
 def _serialize_match(row: sqlite3.Row) -> RowDict:
     match: dict[str, object] = dict(row)
     match["scorer_ids"] = json.loads(str(match.get("scorer_ids", "[]")))
+    match["own_goal_ids"] = json.loads(str(match.get("own_goal_ids", "[]")))
     match["assists_ids"] = json.loads(str(match.get("assists_ids", "[]")))
     match["yellow_card_ids"] = json.loads(str(match.get("yellow_card_ids", "[]")))
     match["red_card_ids"] = json.loads(str(match.get("red_card_ids", "[]")))
@@ -135,6 +136,7 @@ def createMatch(
     kickoff_at: str,
     venue: str | None = None,
     scorer_ids: list[int] | None = None,
+    own_goal_ids: list[int] | None = None,
     assists_ids: list[int] | None = None,
     yellow_card_ids: list[int] | None = None,
     red_card_ids: list[int] | None = None,
@@ -153,6 +155,13 @@ def createMatch(
             local_team_id,
             away_team_id,
             "scorer_ids",
+        )
+        normalized_own_goal_ids = _validate_player_event_ids(
+            connection,
+            [] if own_goal_ids is None else own_goal_ids,
+            local_team_id,
+            away_team_id,
+            "own_goal_ids",
         )
         normalized_assists_ids = _validate_player_event_ids(
             connection,
@@ -186,11 +195,12 @@ def createMatch(
                 kickoff_at,
                 venue,
                 scorer_ids,
+                own_goal_ids,
                 assists_ids,
                 yellow_card_ids,
                 red_card_ids
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 normalized_stage,
@@ -200,6 +210,7 @@ def createMatch(
                 normalized_kickoff_at,
                 normalized_venue,
                 normalized_scorer_ids,
+                normalized_own_goal_ids,
                 normalized_assists_ids,
                 normalized_yellow_card_ids,
                 normalized_red_card_ids,
@@ -210,7 +221,7 @@ def createMatch(
         match = connection.execute(
             """
             SELECT id, stage, group_id, local_team_id, away_team_id, kickoff_at, venue,
-                   local_goals, away_goals, winner_id, scorer_ids, assists_ids, yellow_card_ids, red_card_ids,
+                   local_goals, away_goals, winner_id, scorer_ids, own_goal_ids, assists_ids, yellow_card_ids, red_card_ids,
                    has_extra_time, has_penalties, local_penalties,
                    away_penalties, created_at, updated_at
             FROM matches
@@ -228,6 +239,7 @@ def setMatchResult(
     away_goals: int,
     winner_id: int | None = None,
     scorer_ids: list[int] | None = None,
+    own_goal_ids: list[int] | None = None,
     assists_ids: list[int] | None = None,
     yellow_card_ids: list[int] | None = None,
     red_card_ids: list[int] | None = None,
@@ -243,7 +255,7 @@ def setMatchResult(
     with get_connection() as connection:
         match = connection.execute(
             """
-            SELECT id, stage, local_team_id, away_team_id, scorer_ids, assists_ids, yellow_card_ids, red_card_ids
+            SELECT id, stage, local_team_id, away_team_id, scorer_ids, own_goal_ids, assists_ids, yellow_card_ids, red_card_ids
             FROM matches
             WHERE id = ?
             """,
@@ -262,6 +274,13 @@ def setMatchResult(
             local_team_id,
             away_team_id,
             "scorer_ids",
+        )
+        normalized_own_goal_ids = _validate_player_event_ids(
+            connection,
+            [] if own_goal_ids is None else own_goal_ids,
+            local_team_id,
+            away_team_id,
+            "own_goal_ids",
         )
         normalized_assists_ids = _validate_player_event_ids(
             connection,
@@ -285,15 +304,17 @@ def setMatchResult(
             "red_card_ids",
         )
         old_scorer_ids = json.loads(match["scorer_ids"])
+        old_own_goal_ids = json.loads(match["own_goal_ids"])
         old_assists_ids = json.loads(match["assists_ids"])
         old_yellow_card_ids = json.loads(match["yellow_card_ids"])
         old_red_card_ids = json.loads(match["red_card_ids"])
         new_scorer_ids = json.loads(normalized_scorer_ids)
+        new_own_goal_ids = json.loads(normalized_own_goal_ids)
         new_assists_ids = json.loads(normalized_assists_ids)
         new_yellow_card_ids = json.loads(normalized_yellow_card_ids)
         new_red_card_ids = json.loads(normalized_red_card_ids)
-        if len(json.loads(normalized_scorer_ids)) != local_goals + away_goals:
-            raise ValueError("La lista scorer_ids debe tener tantos elementos como goles totales del partido.")
+        if len(new_scorer_ids) + len(new_own_goal_ids) != local_goals + away_goals:
+            raise ValueError("La suma de scorer_ids y own_goal_ids debe coincidir con los goles totales del partido.")
 
         if match["stage"] == "groups" and has_extra_time:
             raise ValueError("Los partidos de grupos no pueden tener prorroga.")
@@ -340,7 +361,7 @@ def setMatchResult(
         connection.execute(
             """
             UPDATE matches
-            SET local_goals = ?, away_goals = ?, winner_id = ?, scorer_ids = ?, assists_ids = ?,
+            SET local_goals = ?, away_goals = ?, winner_id = ?, scorer_ids = ?, own_goal_ids = ?, assists_ids = ?,
                 yellow_card_ids = ?, red_card_ids = ?, has_extra_time = ?, has_penalties = ?,
                 local_penalties = ?, away_penalties = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -350,6 +371,7 @@ def setMatchResult(
                 away_goals,
                 winner_id,
                 normalized_scorer_ids,
+                normalized_own_goal_ids,
                 normalized_assists_ids,
                 normalized_yellow_card_ids,
                 normalized_red_card_ids,
@@ -369,7 +391,7 @@ def setMatchResult(
         updated_match = connection.execute(
             """
             SELECT id, stage, group_id, local_team_id, away_team_id, kickoff_at, venue,
-                   local_goals, away_goals, winner_id, scorer_ids, assists_ids, yellow_card_ids, red_card_ids,
+                   local_goals, away_goals, winner_id, scorer_ids, own_goal_ids, assists_ids, yellow_card_ids, red_card_ids,
                    has_extra_time, has_penalties, local_penalties,
                    away_penalties, created_at, updated_at
             FROM matches

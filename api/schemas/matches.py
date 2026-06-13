@@ -6,6 +6,7 @@ class SetMatchResultRequest(BaseModel):
     away_goals: int = Field(ge=0)
     winner_id: int | None = None
     scorer_ids: list[int] = []
+    own_goal_ids: list[int] = []
     assists_ids: list[int] = []
     yellow_card_ids: list[int] = []
     red_card_ids: list[int] = []

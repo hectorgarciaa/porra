@@ -135,6 +135,10 @@ def _run_migrations(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE matches ADD COLUMN scorer_ids TEXT NOT NULL DEFAULT '[]'"
         )
+    if match_columns and "own_goal_ids" not in match_columns:
+        connection.execute(
+            "ALTER TABLE matches ADD COLUMN own_goal_ids TEXT NOT NULL DEFAULT '[]'"
+        )
     if match_columns and "assists_ids" not in match_columns:
         connection.execute(
             "ALTER TABLE matches ADD COLUMN assists_ids TEXT NOT NULL DEFAULT '[]'"

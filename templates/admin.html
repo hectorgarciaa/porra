@@ -17,6 +17,54 @@
 {% block bottom_nav %}{% endblock %}
 
 {% block content %}
+<style>
+.player-picker {
+    position: relative;
+}
+
+.player-picker__menu {
+    position: absolute;
+    top: calc(100% + .35rem);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.player-picker__results {
+    max-height: 12rem;
+    overflow-y: auto;
+}
+
+.player-picker__option {
+    width: 100%;
+    text-align: left;
+    padding: .7rem .85rem;
+    font-size: .8125rem;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+    transition: var(--transition);
+}
+
+.player-picker__option:last-child {
+    border-bottom: none;
+}
+
+.player-picker__option:hover {
+    background: var(--blue-light);
+}
+
+.player-picker__empty {
+    padding: .8rem .85rem;
+    font-size: .75rem;
+    color: var(--text-muted);
+}
+</style>
 
 <!-- ── GATE: password screen ─────────────────────────────── -->
 <div id="gate" style="min-height:80vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
@@ -216,37 +264,60 @@
             </div>
 
             <!-- Goleadores -->
-            <div id="scorers-section">
+<div id="scorers-section">
                 <div class="form-label" style="margin-bottom:.5rem;">⚽ Goleadores <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
                 <div id="scorers-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
-                <select id="scorer-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('scorers', this)">
-                    <option value="">+ Añadir goleador</option>
-                </select>
+                <div class="player-picker" id="scorer-picker">
+                    <input id="scorer-picker-input" class="form-input" type="text" style="font-size:.8125rem;"
+                           placeholder="+ Añadir goleador" autocomplete="off"
+                           onfocus="openPlayerPicker('scorers')" oninput="filterPlayerPicker('scorers')">
+                    <div id="scorer-picker-menu" class="player-picker__menu hidden"></div>
+                </div>
+            </div>
+
+            <div id="own-goals-section">
+                <div class="form-label" style="margin-bottom:.5rem;">🥅 Goles en propia <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
+                <div id="own-goals-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
+                <div class="player-picker" id="own-goal-picker">
+                    <input id="own-goal-picker-input" class="form-input" type="text" style="font-size:.8125rem;"
+                           placeholder="+ Añadir gol en propia" autocomplete="off"
+                           onfocus="openPlayerPicker('ownGoals')" oninput="filterPlayerPicker('ownGoals')">
+                    <div id="own-goal-picker-menu" class="player-picker__menu hidden"></div>
+                </div>
             </div>
 
             <!-- Asistentes -->
             <div id="assists-section">
                 <div class="form-label" style="margin-bottom:.5rem;">👟 Asistentes <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
                 <div id="assists-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
-                <select id="assist-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('assists', this)">
-                    <option value="">+ Añadir asistente</option>
-                </select>
+                <div class="player-picker" id="assist-picker">
+                    <input id="assist-picker-input" class="form-input" type="text" style="font-size:.8125rem;"
+                           placeholder="+ Añadir asistente" autocomplete="off"
+                           onfocus="openPlayerPicker('assists')" oninput="filterPlayerPicker('assists')">
+                    <div id="assist-picker-menu" class="player-picker__menu hidden"></div>
+                </div>
             </div>
 
             <!-- Tarjetas -->
             <div>
                 <div class="form-label" style="margin-bottom:.5rem;">🟡 Amarillas <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
                 <div id="yellows-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
-                <select id="yellow-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('yellows', this)">
-                    <option value="">+ Añadir amarilla</option>
-                </select>
+                <div class="player-picker" id="yellow-picker">
+                    <input id="yellow-picker-input" class="form-input" type="text" style="font-size:.8125rem;"
+                           placeholder="+ Añadir amarilla" autocomplete="off"
+                           onfocus="openPlayerPicker('yellows')" oninput="filterPlayerPicker('yellows')">
+                    <div id="yellow-picker-menu" class="player-picker__menu hidden"></div>
+                </div>
             </div>
             <div>
                 <div class="form-label" style="margin-bottom:.5rem;">🟥 Rojas <span style="font-weight:400; color:#8892A4;">(opcional)</span></div>
                 <div id="reds-container" style="display:flex; flex-wrap:wrap; gap:.375rem; margin-bottom:.5rem;"></div>
-                <select id="red-picker" class="form-input" style="font-size:.8125rem;" onchange="addPlayer('reds', this)">
-                    <option value="">+ Añadir roja</option>
-                </select>
+                <div class="player-picker" id="red-picker">
+                    <input id="red-picker-input" class="form-input" type="text" style="font-size:.8125rem;"
+                           placeholder="+ Añadir roja" autocomplete="off"
+                           onfocus="openPlayerPicker('reds')" oninput="filterPlayerPicker('reds')">
+                    <div id="red-picker-menu" class="player-picker__menu hidden"></div>
+                </div>
             </div>
 
             <!-- Error -->
@@ -821,11 +892,19 @@ let adminMatches = [];
 let matchPlayers = {};
 let currentMatchId = null;
 let adminFilterMode = 'all';
-let selected = { scorers: [], assists: [], yellows: [], reds: [] };
+let selected = { scorers: [], ownGoals: [], assists: [], yellows: [], reds: [] };
 let scores = { local: 0, away: 0, localPen: 0, awayPen: 0 };
 let teamDetailsCache = {};
 let teamDetailsPromises = {};
-const DUPLICATE_EVENT_CATEGORIES = new Set(['scorers', 'assists', 'yellows']);
+const DUPLICATE_EVENT_CATEGORIES = new Set(['scorers', 'ownGoals', 'assists', 'yellows']);
+const PLAYER_PICKER_CONFIG = {
+    scorers: { inputId: 'scorer-picker-input', menuId: 'scorer-picker-menu', rootId: 'scorer-picker', containerId: 'scorers-container', emptyText: 'No hay jugadores que coincidan.' },
+    ownGoals: { inputId: 'own-goal-picker-input', menuId: 'own-goal-picker-menu', rootId: 'own-goal-picker', containerId: 'own-goals-container', emptyText: 'No hay jugadores que coincidan.' },
+    assists: { inputId: 'assist-picker-input', menuId: 'assist-picker-menu', rootId: 'assist-picker', containerId: 'assists-container', emptyText: 'No hay jugadores que coincidan.' },
+    yellows: { inputId: 'yellow-picker-input', menuId: 'yellow-picker-menu', rootId: 'yellow-picker', containerId: 'yellows-container', emptyText: 'No hay jugadores que coincidan.' },
+    reds: { inputId: 'red-picker-input', menuId: 'red-picker-menu', rootId: 'red-picker', containerId: 'reds-container', emptyText: 'No hay jugadores que coincidan.' },
+};
+let playerPickerOptions = { scorers: [], ownGoals: [], assists: [], yellows: [], reds: [] };
 
 function getTeamDetailPromise(teamId) {
     if (teamDetailsCache[teamId]) return Promise.resolve(teamDetailsCache[teamId]);
@@ -985,15 +1064,14 @@ async function openModal(matchId) {
     const playersById = Object.fromEntries(allPlayers.map(p => [p.id, p]));
     matchPlayers.__byId = playersById;
 
-    const pickerIds = ['scorer-picker','assist-picker','yellow-picker','red-picker'];
-    for (const pid of pickerIds) {
-        const sel = document.getElementById(pid);
-        sel.innerHTML = '<option value="">+ Añadir jugador</option>' +
-            allPlayers.map(p => `<option value="${p.id}">${p.name} ${p.surname} (${p.number})</option>`).join('');
+    for (const category of Object.keys(PLAYER_PICKER_CONFIG)) {
+        setPlayerPickerOptions(category, allPlayers);
+        resetPlayerPicker(category);
     }
 
     selected = {
         scorers: (matchDetail?.scorers || []).map(player => Number(player.id)),
+        ownGoals: (matchDetail?.own_goals || []).map(player => Number(player.id)),
         assists: (matchDetail?.assists || []).map(player => Number(player.id)),
         yellows: (matchDetail?.yellow_cards || []).map(player => Number(player.id)),
         reds: (matchDetail?.red_cards || []).map(player => Number(player.id)),
@@ -1041,46 +1119,150 @@ function formatPlayerLabel(player) {
     return `${name || 'Jugador'}${dorsal}`;
 }
 
+function formatSelectedPlayerLabel(category, player) {
+    const baseLabel = formatPlayerLabel(player);
+    return category === 'ownGoals' ? `${baseLabel} (PP)` : baseLabel;
+}
+
 function renderSelectedCategory(category, playersById) {
-    const container = document.getElementById(category + '-container');
+    const containerId = PLAYER_PICKER_CONFIG[category]?.containerId || (category + '-container');
+    const container = document.getElementById(containerId);
     container.innerHTML = '';
 
     selected[category].forEach((id, index) => {
         const player = playersById[id];
         const tag = document.createElement('span');
         tag.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem;background:var(--blue-light);border:1px solid var(--blue-mid);color:var(--blue);border-radius:9999px;padding:.2rem .625rem;font-size:.75rem;font-weight:600;';
-        tag.innerHTML = `${formatPlayerLabel(player)} <button type="button" onclick="removePlayer('${category}', ${index})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
+        tag.innerHTML = `${formatSelectedPlayerLabel(category, player)} <button type="button" onclick="removePlayer('${category}', ${index})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
         container.appendChild(tag);
     });
 }
 
 function renderAllSelectedCategories(playersById) {
-    ['scorers', 'assists', 'yellows', 'reds'].forEach(category => {
+    ['scorers', 'ownGoals', 'assists', 'yellows', 'reds'].forEach(category => {
         renderSelectedCategory(category, playersById);
     });
 }
 
-function addPlayer(category, select) {
-    const val = select.value;
-    if (!val) return;
-    const id = parseInt(val, 10);
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function normalizePlayerSearch(text) {
+    return String(text || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function getPlayerPickerElements(category) {
+    const config = PLAYER_PICKER_CONFIG[category];
+    if (!config) return null;
+    return {
+        root: document.getElementById(config.rootId),
+        input: document.getElementById(config.inputId),
+        menu: document.getElementById(config.menuId),
+    };
+}
+
+function setPlayerPickerOptions(category, players) {
+    playerPickerOptions[category] = Array.isArray(players) ? players : [];
+    renderPlayerPickerOptions(category);
+}
+
+function closePlayerPicker(category) {
+    const els = getPlayerPickerElements(category);
+    if (!els) return;
+    els.menu.classList.add('hidden');
+}
+
+function closeAllPlayerPickers(exceptCategory = null) {
+    Object.keys(PLAYER_PICKER_CONFIG).forEach(category => {
+        if (category !== exceptCategory) closePlayerPicker(category);
+    });
+}
+
+function openPlayerPicker(category) {
+    closeAllPlayerPickers(category);
+    const els = getPlayerPickerElements(category);
+    if (!els) return;
+    els.menu.classList.remove('hidden');
+    renderPlayerPickerOptions(category);
+}
+
+function renderPlayerPickerOptions(category) {
+    const els = getPlayerPickerElements(category);
+    const config = PLAYER_PICKER_CONFIG[category];
+    if (!els || !config) return;
+
+    const query = normalizePlayerSearch(els.input.value);
+    const filtered = (playerPickerOptions[category] || []).filter(player => {
+        const label = formatPlayerLabel(player);
+        return normalizePlayerSearch(`${label} ${player?.number ?? ''}`).includes(query);
+    });
+
+    if (!filtered.length) {
+        els.menu.innerHTML = `<div class="player-picker__empty">${config.emptyText}</div>`;
+        return;
+    }
+
+    els.menu.innerHTML = `<div class="player-picker__results">${
+        filtered.map(player => `
+            <button type="button" class="player-picker__option" onclick="selectPlayerPickerOption('${category}', ${player.id})">
+                ${escapeHtml(formatPlayerLabel(player))}
+            </button>
+        `).join('')
+    }</div>`;
+}
+
+function filterPlayerPicker(category) {
+    openPlayerPicker(category);
+}
+
+function resetPlayerPicker(category) {
+    const els = getPlayerPickerElements(category);
+    if (!els) return;
+    els.input.value = '';
+    renderPlayerPickerOptions(category);
+}
+
+function selectPlayerPickerOption(category, playerId) {
+    addPlayer(category, playerId);
+}
+
+function addPlayer(category, playerId) {
+    const id = parseInt(playerId, 10);
+    if (Number.isNaN(id)) return;
     if (!DUPLICATE_EVENT_CATEGORIES.has(category) && selected[category].includes(id)) {
-        select.value = '';
+        resetPlayerPicker(category);
         return;
     }
     selected[category].push(id);
-
     renderSelectedCategory(category, matchPlayers.__byId || {});
-    select.value = '';
-    return;
-    tag.innerHTML = `${text} <button type="button" onclick="removePlayer('${category}', ${id}, this.parentElement)" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:.875rem;padding:0;line-height:1;">×</button>`;
-    select.value = '';
+    resetPlayerPicker(category);
+    closePlayerPicker(category);
 }
 
 function removePlayer(category, index) {
     selected[category].splice(index, 1);
     renderSelectedCategory(category, matchPlayers.__byId || {});
 }
+
+document.addEventListener('click', (event) => {
+    const clickedInsidePicker = Object.keys(PLAYER_PICKER_CONFIG).some(category => {
+        const els = getPlayerPickerElements(category);
+        return els?.root?.contains(event.target);
+    });
+    if (!clickedInsidePicker) {
+        closeAllPlayerPickers();
+    }
+});
 
 /* ── Submit result ──────────────────────────────────────────── */
 document.getElementById('result-form').addEventListener('submit', async (e) => {
@@ -1107,6 +1289,7 @@ document.getElementById('result-form').addEventListener('submit', async (e) => {
         away_goals: scores.away,
         winner_id: winnerId,
         scorer_ids: selected.scorers,
+        own_goal_ids: selected.ownGoals,
         assists_ids: selected.assists,
         yellow_card_ids: selected.yellows,
         red_card_ids: selected.reds,

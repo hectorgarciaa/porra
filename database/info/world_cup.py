@@ -265,6 +265,7 @@ def getMatchOverviewById(match_id: int) -> JsonDict:
                 matches.away_goals,
                 matches.winner_id,
                 matches.scorer_ids,
+                matches.own_goal_ids,
                 matches.assists_ids,
                 matches.yellow_card_ids,
                 matches.red_card_ids,
@@ -298,13 +299,14 @@ def getMatchOverviewById(match_id: int) -> JsonDict:
             raise MatchNotFoundError(f"No existe el partido con id {match_id}.")
 
         scorer_ids = json.loads(match_row["scorer_ids"])
+        own_goal_ids = json.loads(match_row["own_goal_ids"])
         assists_ids = json.loads(match_row["assists_ids"])
         yellow_card_ids = json.loads(match_row["yellow_card_ids"])
         red_card_ids = json.loads(match_row["red_card_ids"])
 
         player_map = _build_player_map(
             connection,
-            scorer_ids + assists_ids + yellow_card_ids + red_card_ids,
+            scorer_ids + own_goal_ids + assists_ids + yellow_card_ids + red_card_ids,
         )
 
         winner_team = None
@@ -349,6 +351,7 @@ def getMatchOverviewById(match_id: int) -> JsonDict:
                 "group_id": match_row["away_team_group_id"],
             },
             "scorers": _expand_players(scorer_ids, player_map),
+            "own_goals": _expand_players(own_goal_ids, player_map),
             "assists": _expand_players(assists_ids, player_map),
             "yellow_cards": _expand_players(yellow_card_ids, player_map),
             "red_cards": _expand_players(red_card_ids, player_map),

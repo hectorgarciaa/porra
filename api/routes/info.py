@@ -49,6 +49,7 @@ def set_match_result(
         away_goals=payload.away_goals,
         winner_id=payload.winner_id,
         scorer_ids=payload.scorer_ids if payload.scorer_ids else None,
+        own_goal_ids=payload.own_goal_ids if payload.own_goal_ids else None,
         assists_ids=payload.assists_ids if payload.assists_ids else None,
         yellow_card_ids=payload.yellow_card_ids if payload.yellow_card_ids else None,
         red_card_ids=payload.red_card_ids if payload.red_card_ids else None,

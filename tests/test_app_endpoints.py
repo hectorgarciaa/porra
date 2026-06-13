@@ -176,6 +176,7 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
             "away_goals": 0,
             "winner_id": local_team_id,
             "scorer_ids": [scorer_id],
+            "own_goal_ids": [],
             "assists_ids": [assist_id],
             "yellow_card_ids": [],
             "red_card_ids": [],
@@ -187,6 +188,31 @@ def test_predictions_match_results_and_admin_tools(client, registered_user) -> N
     )
     assert match_result_response.status_code == 200
     assert match_result_response.json()["match"]["local_goals"] == 1
+
+    own_goal_result_response = client.put(
+        "/matches/1/result",
+        headers=admin_headers,
+        json={
+            "local_goals": 1,
+            "away_goals": 0,
+            "winner_id": local_team_id,
+            "scorer_ids": [],
+            "own_goal_ids": [assist_id],
+            "assists_ids": [],
+            "yellow_card_ids": [],
+            "red_card_ids": [],
+            "has_extra_time": False,
+            "has_penalties": False,
+            "local_penalties": None,
+            "away_penalties": None,
+        },
+    )
+    assert own_goal_result_response.status_code == 200
+    assert own_goal_result_response.json()["match"]["own_goal_ids"] == [assist_id]
+
+    match_after = client.get("/matches/1")
+    assert match_after.status_code == 200
+    assert match_after.json()["own_goals"][0]["id"] == assist_id
 
     leaderboard_response = client.get("/leaderboard")
     assert leaderboard_response.status_code == 200
@@ -273,6 +299,11 @@ def test_frontend_contracts(client) -> None:
     assert "media-explorer" in admin_html
     assert "DUPLICATE_EVENT_CATEGORIES" in admin_html
     assert "renderAllSelectedCategories" in admin_html
+    assert "PLAYER_PICKER_CONFIG" in admin_html
+    assert "filterPlayerPicker" in admin_html
+    assert "player-picker__menu" in admin_html
+    assert "own-goal-picker" in admin_html
+    assert "own_goal_ids" in admin_html
     assert "/matches/${matchId}" in admin_html
     assert "predicted_groups" in Path("database/predictions/prediction_service.py").read_text(encoding="utf-8")
     assert "predicted-groups-section" in Path("templates/view_prediction.html").read_text(encoding="utf-8")

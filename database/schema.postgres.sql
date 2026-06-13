@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS matches (
     away_goals INTEGER,
     winner_id INTEGER,
     scorer_ids TEXT NOT NULL DEFAULT '[]',
+    own_goal_ids TEXT NOT NULL DEFAULT '[]',
     assists_ids TEXT NOT NULL DEFAULT '[]',
     yellow_card_ids TEXT NOT NULL DEFAULT '[]',
     red_card_ids TEXT NOT NULL DEFAULT '[]',
